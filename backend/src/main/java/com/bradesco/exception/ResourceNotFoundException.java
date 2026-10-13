@@ -1,4 +1,4 @@
-package com.bradesco.gestao_financeira.exception;
+package com.bradesco.exception;
 
 public class ResourceNotFoundException extends RuntimeException {
   public ResourceNotFoundException(String message) {

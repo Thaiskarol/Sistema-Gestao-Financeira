@@ -1,4 +1,4 @@
-package com.bradesco.gestao_financeira.dto.response;
+package com.bradesco.dto.response;
 
 public record ErrorDetail(
   String field, 

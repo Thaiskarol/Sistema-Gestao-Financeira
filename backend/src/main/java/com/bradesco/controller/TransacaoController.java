@@ -1,15 +1,38 @@
-package com.bradesco.gestao_financeira.controller;
+package com.bradesco.controller;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import com.bradesco.dto.request.TransacaoRequestDTO;
+import com.bradesco.dto.response.ApiResponse;
+import com.bradesco.entity.Transacao;
+import com.bradesco.service.TransacaoService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-@RestController 
-@RequestMapping ("/api/transacoes")
+@RestController
+@RequestMapping("/transacoes")
 public class TransacaoController {
-  
-  @GetMapping 
-  public String listar() {
-    return "Lista de transações";
-  }
+
+    private final TransacaoService transacaoService;
+
+    public TransacaoController(TransacaoService transacaoService) {
+        this.transacaoService = transacaoService;
+    }
+
+    @PostMapping
+    public ResponseEntity<ApiResponse<Transacao>> cadastrar(
+            @Valid @RequestBody TransacaoRequestDTO dados) {
+
+        Transacao transacao = transacaoService.cadastrar(dados);
+
+        ApiResponse<Transacao> response = new ApiResponse<>(
+                true,
+                "Transação cadastrada com sucesso.",
+                transacao
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(response);
+    }
 }

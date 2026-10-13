@@ -1,4 +1,4 @@
-package com.bradesco.gestao_financeira;
+package com.bradesco;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
