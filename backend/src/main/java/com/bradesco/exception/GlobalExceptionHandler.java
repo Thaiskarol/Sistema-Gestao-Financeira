@@ -37,5 +37,35 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(response);
+        }
+
+          @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFound(
+            ResourceNotFoundException exception) {
+
+        ErrorResponse response = new ErrorResponse(
+                false,
+                exception.getMessage(),
+                null,
+                List.of()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(response);
+    }
+    @ExceptionHandler (Exception.class)
+    public ResponseEntity<ErrorResponse> handleGeneric(Exception exception) {
+
+        ErrorResponse response = new ErrorResponse(
+                false,
+                "Ocorreu um erro interno no servidor.",
+                null, 
+                List.of()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(response);
     }
 }

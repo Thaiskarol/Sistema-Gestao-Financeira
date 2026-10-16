@@ -33,7 +33,7 @@ public class TransacaoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
 
         Categoria categoria = categoriaRepository.findById(dados.categoriaId())
-                .orElseThrow(() -> new RuntimeException("Categoria não encontrada."));
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada."));
 
         Transacao transacao = new Transacao();
 
