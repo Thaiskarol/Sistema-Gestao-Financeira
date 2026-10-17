@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/transacoes")
 public class TransacaoController {
@@ -26,25 +28,29 @@ public class TransacaoController {
 
         Transacao transacao = transacaoService.cadastrar(dados);
 
-        TransacaoResponseDTO responseDTO = new TransacaoResponseDTO(
-            transacao.getId(),
-            transacao.getDescricao(),
-            transacao.getValor(),
-            transacao.getDataTransacao(),
-            transacao.getRecorrencia(),
-            transacao.getTipo(),
-            transacao.getCategoria().getId(),
-            transacao.getUsuario().getId()
-        );
-
         ApiResponse<TransacaoResponseDTO> response = new ApiResponse<>(
                 true,
                 "Transação cadastrada com sucesso.",
-                responseDTO
+                transacaoService.toResponse(transacao)
         );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<TransacaoResponseDTO>>> listar(
+            @RequestParam Long usuarioId) {
+
+        List<TransacaoResponseDTO> transacoes = transacaoService.listarPorUsuario(usuarioId);
+
+        ApiResponse<List<TransacaoResponseDTO>> response = new ApiResponse<>(
+                true,
+                "Histórico financeiro recuperado com sucesso.",
+                transacoes
+        );
+
+        return ResponseEntity.ok(response);
     }
 }
