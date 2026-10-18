@@ -1,16 +1,18 @@
 package com.bradesco.controller;
 
+import com.bradesco.dto.request.ImportacaoRequestDTO;
 import com.bradesco.dto.request.TransacaoRequestDTO;
 import com.bradesco.dto.response.ApiResponse;
 import com.bradesco.dto.response.TransacaoResponseDTO;
 import com.bradesco.entity.Transacao;
 import com.bradesco.service.TransacaoService;
 import jakarta.validation.Valid;
+
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/transacoes")
@@ -28,10 +30,21 @@ public class TransacaoController {
 
         Transacao transacao = transacaoService.cadastrar(dados);
 
+        TransacaoResponseDTO responseDTO = new TransacaoResponseDTO(
+                transacao.getId(),
+                transacao.getDescricao(),
+                transacao.getValor(),
+                transacao.getDataTransacao(),
+                transacao.getRecorrencia(),
+                transacao.getTipo(),
+                transacao.getCategoria().getId(),
+                transacao.getUsuario().getId()
+        );
+
         ApiResponse<TransacaoResponseDTO> response = new ApiResponse<>(
                 true,
                 "Transação cadastrada com sucesso.",
-                transacaoService.toResponse(transacao)
+                responseDTO
         );
 
         return ResponseEntity
@@ -43,7 +56,8 @@ public class TransacaoController {
     public ResponseEntity<ApiResponse<List<TransacaoResponseDTO>>> listar(
             @RequestParam Long usuarioId) {
 
-        List<TransacaoResponseDTO> transacoes = transacaoService.listarPorUsuario(usuarioId);
+        List<TransacaoResponseDTO> transacoes =
+                transacaoService.listarPorUsuario(usuarioId);
 
         ApiResponse<List<TransacaoResponseDTO>> response = new ApiResponse<>(
                 true,
@@ -52,5 +66,39 @@ public class TransacaoController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Object>> excluir(
+            @PathVariable Long id,
+            @RequestParam Long usuarioId) {
+
+        transacaoService.excluir(id, usuarioId);
+
+        ApiResponse<Object> response = new ApiResponse<>(
+                true,
+                "Transação excluída com sucesso.",
+                null
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/importar")
+    public ResponseEntity<ApiResponse<List<TransacaoResponseDTO>>> importar(
+            @Valid @RequestBody ImportacaoRequestDTO dados) {
+
+        List<TransacaoResponseDTO> importadas =
+                transacaoService.importar(dados);
+
+        ApiResponse<List<TransacaoResponseDTO>> response = new ApiResponse<>(
+                true,
+                "Transações importadas com sucesso.",
+                importadas
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(response);
     }
 }

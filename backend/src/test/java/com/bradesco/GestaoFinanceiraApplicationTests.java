@@ -15,6 +15,6 @@ class GestaoFinanceiraApplicationTests {
 
     @Test
     void contextLoads() {
-        // Testa se o contexto do Spring carrega com sucesso
+    
     }
 }
