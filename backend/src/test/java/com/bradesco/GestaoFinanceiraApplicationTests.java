@@ -1,4 +1,4 @@
-package com.bradesco.gestao_financeira;
+package com.bradesco;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

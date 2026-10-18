@@ -31,14 +31,14 @@ public class TransacaoController {
         Transacao transacao = transacaoService.cadastrar(dados);
 
         TransacaoResponseDTO responseDTO = new TransacaoResponseDTO(
-            transacao.getId(),
-            transacao.getDescricao(),
-            transacao.getValor(),
-            transacao.getDataTransacao(),
-            transacao.getRecorrencia(),
-            transacao.getTipo(),
-            transacao.getCategoria().getId(),
-            transacao.getUsuario().getId()
+                transacao.getId(),
+                transacao.getDescricao(),
+                transacao.getValor(),
+                transacao.getDataTransacao(),
+                transacao.getRecorrencia(),
+                transacao.getTipo(),
+                transacao.getCategoria().getId(),
+                transacao.getUsuario().getId()
         );
 
         ApiResponse<TransacaoResponseDTO> response = new ApiResponse<>(
@@ -52,11 +52,26 @@ public class TransacaoController {
                 .body(response);
     }
 
-    @DeleteMapping ("/{id}")
-    public ResponseEntity<ApiResponse<Object>> excluir(
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<TransacaoResponseDTO>>> listar(
+            @RequestParam Long usuarioId) {
 
-        @PathVariable Long id,
-        @RequestParam Long usuarioId) {
+        List<TransacaoResponseDTO> transacoes =
+                transacaoService.listarPorUsuario(usuarioId);
+
+        ApiResponse<List<TransacaoResponseDTO>> response = new ApiResponse<>(
+                true,
+                "Histórico financeiro recuperado com sucesso.",
+                transacoes
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Object>> excluir(
+            @PathVariable Long id,
+            @RequestParam Long usuarioId) {
 
         transacaoService.excluir(id, usuarioId);
 
@@ -70,17 +85,20 @@ public class TransacaoController {
     }
 
     @PostMapping("/importar")
-public ResponseEntity<ApiResponse<List<TransacaoResponseDTO>>> importar(
-        @Valid @RequestBody ImportacaoRequestDTO dados) {
+    public ResponseEntity<ApiResponse<List<TransacaoResponseDTO>>> importar(
+            @Valid @RequestBody ImportacaoRequestDTO dados) {
 
-    List<TransacaoResponseDTO> importadas = transacaoService.importar(dados);
+        List<TransacaoResponseDTO> importadas =
+                transacaoService.importar(dados);
 
-    ApiResponse<List<TransacaoResponseDTO>> response = new ApiResponse<>(
-            true,
-            "Transações importadas com sucesso.",
-            importadas
-    );
+        ApiResponse<List<TransacaoResponseDTO>> response = new ApiResponse<>(
+                true,
+                "Transações importadas com sucesso.",
+                importadas
+        );
 
-    return ResponseEntity.status(HttpStatus.CREATED).body(response);
-}
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(response);
+    }
 }

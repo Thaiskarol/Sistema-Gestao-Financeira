@@ -31,7 +31,7 @@ public class TransacaoService {
         this.transacaoRepository = transacaoRepository;
         this.usuarioRepository = usuarioRepository;
         this.categoriaRepository = categoriaRepository;
-    }   
+    }
 
     public Transacao cadastrar(TransacaoRequestDTO dados) {
 
@@ -54,58 +54,74 @@ public class TransacaoService {
         return transacaoRepository.save(transacao);
     }
 
+    public List<TransacaoResponseDTO> listarPorUsuario(Long usuarioId) {
+
+        usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
+
+        return transacaoRepository.findByUsuarioId(usuarioId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
     public void excluir(Long id, Long usuarioId) {
 
         Transacao transacao = transacaoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada."));
 
-                if (!transacao.getUsuario().getId().equals(usuarioId)) {
-                    throw new ResourceNotFoundException("Transação não encontrada para este usuário.");
-                }
+        if (!transacao.getUsuario().getId().equals(usuarioId)) {
+            throw new ResourceNotFoundException("Transação não encontrada para este usuário.");
+        }
 
-                transacaoRepository.delete(transacao);
+        transacaoRepository.delete(transacao);
+    }
+
+    public List<TransacaoResponseDTO> importar(ImportacaoRequestDTO dados) {
+
+        Usuario usuario = usuarioRepository.findById(dados.usuarioId())
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
+
+        List<Transacao> salvas = new ArrayList<>();
+
+        for (TransacaoRequestDTO item : dados.transacoes()) {
+
+            if (item.valor() == null || item.valor().signum() <= 0) {
+                continue;
+            }
+
+            Categoria categoria = categoriaRepository.findById(item.categoriaId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada."));
+
+            Transacao t = new Transacao();
+
+            t.setDescricao(item.descricao());
+            t.setValor(item.valor());
+            t.setDataTransacao(item.dataTransacao());
+            t.setRecorrencia(item.recorrencia());
+            t.setTipo(item.tipo());
+            t.setUsuario(usuario);
+            t.setCategoria(categoria);
+
+            salvas.add(transacaoRepository.save(t));
+        }
+
+        return salvas.stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     private TransacaoResponseDTO toResponse(Transacao transacao) {
 
-    return new TransacaoResponseDTO(
-            transacao.getId(),
-            transacao.getDescricao(),
-            transacao.getValor(),
-            transacao.getDataTransacao(),
-            transacao.getRecorrencia(),
-            transacao.getTipo(),
-            transacao.getCategoria().getId(),
-            transacao.getUsuario().getId()
-    );
-}
-
-    public List<TransacaoResponseDTO> importar(ImportacaoRequestDTO dados) {
-
-    Usuario usuario = usuarioRepository.findById(dados.usuarioId())
-            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
-
-    List<Transacao> salvas = new ArrayList<>();
-
-    for (TransacaoRequestDTO item : dados.transacoes()) {
-        
-        if (item.valor() == null || item.valor().signum() <= 0) {
-            continue;
-        }
-        Categoria categoria = categoriaRepository.findById(item.categoriaId())
-                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada."));
-
-        Transacao t = new Transacao();
-        t.setDescricao(item.descricao());
-        t.setValor(item.valor());
-        t.setDataTransacao(item.dataTransacao());
-        t.setRecorrencia(item.recorrencia());
-        t.setTipo(item.tipo());
-        t.setUsuario(usuario);
-        t.setCategoria(categoria);
-        salvas.add(transacaoRepository.save(t));
+        return new TransacaoResponseDTO(
+                transacao.getId(),
+                transacao.getDescricao(),
+                transacao.getValor(),
+                transacao.getDataTransacao(),
+                transacao.getRecorrencia(),
+                transacao.getTipo(),
+                transacao.getCategoria().getId(),
+                transacao.getUsuario().getId()
+        );
     }
-
-    return salvas.stream().map(this::toResponse).toList();
-}
 }
