@@ -37,6 +37,9 @@ public class Transacao {
   @Column (length = 50)
   private String recorrencia;
 
+    @Column(length = 150)
+  private String estabelecimento;
+
   @Column (nullable = false, length = 10)
   private TipoTransacao tipo;
 
@@ -68,6 +71,10 @@ public class Transacao {
     return recorrencia;
   }
 
+    public String getEstabelecimento(){
+    return estabelecimento;
+  }
+
   public TipoTransacao getTipo(){
     return tipo;
   }
@@ -94,6 +101,10 @@ public class Transacao {
 
   public void setRecorrencia(String recorrencia){
     this.recorrencia = recorrencia;
+  }
+
+  public void setEstabelecimento(String estabelecimento){
+    this.estabelecimento = estabelecimento;
   }
 
   public void setTipo(TipoTransacao tipo){
