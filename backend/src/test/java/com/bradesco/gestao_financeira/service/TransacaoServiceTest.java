@@ -83,5 +83,7 @@ class TransacaoServiceTest {
         assertThrows(ResourceNotFoundException.class,
                 () -> transacaoService.cadastrar(dados));
     }
+
+    
 }
 

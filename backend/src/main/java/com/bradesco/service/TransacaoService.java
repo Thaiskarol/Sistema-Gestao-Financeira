@@ -11,6 +11,7 @@ import com.bradesco.repository.CategoriaRepository;
 import com.bradesco.repository.TransacaoRepository;
 import com.bradesco.repository.UsuarioRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TransacaoService {
@@ -50,6 +51,7 @@ public class TransacaoService {
         return transacaoRepository.save(transacao);
     }
 
+    @Transactional
     public TransacaoResponseDTO editar(Long id, TransacaoUpdateDTO dados) {
 
         Transacao transacao = transacaoRepository.findById(id)

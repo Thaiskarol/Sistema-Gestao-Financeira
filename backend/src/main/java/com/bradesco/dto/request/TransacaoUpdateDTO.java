@@ -5,10 +5,12 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record TransacaoUpdateDTO(
+
      @NotBlank(message = "A descrição é obrigatória.")
       @Size(max = 350, message = "A descrição deve ter no máximo 350 caracteres.")
       String descricao,
 
+      @Size(max = 50, message = "A recorrência deve ter no máximo 50 caracteres.")
       String recorrencia,
 
       @NotNull(message = "A categoria é obrigatória.")
