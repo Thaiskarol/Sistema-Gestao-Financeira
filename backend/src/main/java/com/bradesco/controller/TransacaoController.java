@@ -1,6 +1,7 @@
 package com.bradesco.controller;
 
 import com.bradesco.dto.request.TransacaoRequestDTO;
+import com.bradesco.dto.request.TransacaoUpdateDTO;
 import com.bradesco.dto.response.ApiResponse;
 import com.bradesco.dto.response.TransacaoResponseDTO;
 import com.bradesco.entity.Transacao;
@@ -9,6 +10,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 @RestController
 @RequestMapping("/transacoes")
@@ -46,5 +49,21 @@ public class TransacaoController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<TransacaoResponseDTO>> editar(
+        @PathVariable Long id,
+        @Valid @RequestBody TransacaoUpdateDTO dados) {
+
+        TransacaoResponseDTO transacao = transacaoService.editar(id, dados);
+
+        ApiResponse<TransacaoResponseDTO> response = new ApiResponse<>(
+            true,
+            "Transação atualizada com sucesso.",
+            transacao
+        );
+
+        return ResponseEntity.ok(response);
     }
 }

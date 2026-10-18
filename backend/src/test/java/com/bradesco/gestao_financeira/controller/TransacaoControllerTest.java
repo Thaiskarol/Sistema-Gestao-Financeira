@@ -24,41 +24,40 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(TransacaoController.class)
 class TransacaoControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+        @Autowired
+        private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+        @Autowired
+        private ObjectMapper objectMapper;
 
-    @MockitoBean 
-    private TransacaoService transacaoService;
+        @MockitoBean
+        private TransacaoService transacaoService;
 
-    @Test
-    void deveRetornar201QuandoCadastroValido() throws Exception {
-        TransacaoRequestDTO dados = new TransacaoRequestDTO(
-                "Salário", new BigDecimal("1000.00"), LocalDate.now(),
-                null, TipoTransacao.RECEITA, 1L, 1L);
+        @Test
+        void deveRetornar201QuandoCadastroValido() throws Exception {
+                TransacaoRequestDTO dados = new TransacaoRequestDTO(
+                                "Salário", new BigDecimal("1000.00"), LocalDate.now(),
+                                null, TipoTransacao.RECEITA, 1L, 1L);
 
-        when(transacaoService.cadastrar(any())).thenReturn(new Transacao());
+                when(transacaoService.cadastrar(any())).thenReturn(new Transacao());
 
-        mockMvc.perform(post("/transacoes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dados)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.success").value(true));
-    }
+                mockMvc.perform(post("/transacoes")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(dados)))
+                                .andExpect(status().isCreated())
+                                .andExpect(jsonPath("$.success").value(true));
+        }
 
-    @Test
-    void deveRetornar400QuandoDescricaoVazia() throws Exception {
-        TransacaoRequestDTO dados = new TransacaoRequestDTO(
-                "", new BigDecimal("1000.00"), LocalDate.now(),
-                null, TipoTransacao.RECEITA, 1L, 1L);
+        @Test
+        void deveRetornar400QuandoDescricaoVazia() throws Exception {
+                TransacaoRequestDTO dados = new TransacaoRequestDTO(
+                                "", new BigDecimal("1000.00"), LocalDate.now(),
+                                null, TipoTransacao.RECEITA, 1L, 1L);
 
-        mockMvc.perform(post("/transacoes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dados)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false));
-    }
+                mockMvc.perform(post("/transacoes")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(dados)))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.success").value(false));
+        }
 }
-
