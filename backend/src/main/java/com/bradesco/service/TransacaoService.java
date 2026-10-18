@@ -2,6 +2,7 @@ package com.bradesco.service;
 
 import com.bradesco.dto.request.ImportacaoRequestDTO;
 import com.bradesco.dto.request.TransacaoRequestDTO;
+import com.bradesco.dto.request.TransacaoUpdateDTO;
 import com.bradesco.dto.response.TransacaoResponseDTO;
 import com.bradesco.entity.Categoria;
 import com.bradesco.entity.Transacao;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TransacaoService {
@@ -63,6 +65,27 @@ public class TransacaoService {
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional
+    public TransacaoResponseDTO editar(Long id, TransacaoUpdateDTO dados) {
+
+        Transacao transacao = transacaoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada."));
+
+        if (!transacao.getUsuario().getId().equals(dados.usuarioId())) {
+            throw new ResourceNotFoundException("Transação não encontrada para este usuário.");
+        }
+
+        Categoria categoria = categoriaRepository.findById(dados.categoriaId())
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada."));
+
+        transacao.setDescricao(dados.descricao());
+        transacao.setRecorrencia(dados.recorrencia());
+        transacao.setCategoria(categoria);
+
+        Transacao atualizada = transacaoRepository.save(transacao);
+        return toResponse(atualizada);
     }
 
     public void excluir(Long id, Long usuarioId) {

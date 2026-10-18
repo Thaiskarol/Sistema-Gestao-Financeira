@@ -2,6 +2,7 @@ package com.bradesco.controller;
 
 import com.bradesco.dto.request.ImportacaoRequestDTO;
 import com.bradesco.dto.request.TransacaoRequestDTO;
+import com.bradesco.dto.request.TransacaoUpdateDTO;
 import com.bradesco.dto.response.ApiResponse;
 import com.bradesco.dto.response.TransacaoResponseDTO;
 import com.bradesco.entity.Transacao;
@@ -63,6 +64,22 @@ public class TransacaoController {
                 true,
                 "Histórico financeiro recuperado com sucesso.",
                 transacoes
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<TransacaoResponseDTO>> editar(
+            @PathVariable Long id,
+            @Valid @RequestBody TransacaoUpdateDTO dados) {
+
+        TransacaoResponseDTO transacao = transacaoService.editar(id, dados);
+
+        ApiResponse<TransacaoResponseDTO> response = new ApiResponse<>(
+                true,
+                "Transação atualizada com sucesso.",
+                transacao
         );
 
         return ResponseEntity.ok(response);

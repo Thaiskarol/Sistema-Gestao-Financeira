@@ -10,7 +10,6 @@ import com.bradesco.exception.ResourceNotFoundException;
 import com.bradesco.repository.CategoriaRepository;
 import com.bradesco.repository.TransacaoRepository;
 import com.bradesco.repository.UsuarioRepository;
-import com.bradesco.service.TransacaoService;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
