@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -144,5 +145,31 @@ class TransacaoControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].descricao")
                         .value("Salário"));
+    }
+
+    @Test
+    void deveRetornar200AoAlterarCategoria() throws Exception {
+        TransacaoResponseDTO retorno = new TransacaoResponseDTO(
+            10L, "Mercado", new BigDecimal("50.00"), LocalDate.of(2026, 10, 17),
+            null, TipoTransacao.DESPESA, 2L, 1L);
+
+        when(transacaoService.alterarCategoria(10L, 2L)).thenReturn(retorno);
+
+        mockMvc.perform(put("/transacoes/10/categoria")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"novaCategoriaId\": 2}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("Categoria da despesa alterada com sucesso."))
+            .andExpect(jsonPath("$.data.categoriaId").value(2));
+     }
+
+    @Test
+    void deveRetornar400QuandoNovaCategoriaNaoInformada() throws Exception {
+        mockMvc.perform(put("/transacoes/10/categoria")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.errors[0].field").value("novaCategoriaId"));
     }
 }

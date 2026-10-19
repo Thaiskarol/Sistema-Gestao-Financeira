@@ -10,6 +10,7 @@ import com.bradesco.exception.ResourceNotFoundException;
 import com.bradesco.repository.CategoriaRepository;
 import com.bradesco.repository.TransacaoRepository;
 import com.bradesco.repository.UsuarioRepository;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -118,5 +120,63 @@ class TransacaoServiceTest {
 
         assertThrows(ResourceNotFoundException.class,
                 () -> transacaoService.listarPorUsuario(1L));
+    }
+
+    private Categoria categoriaComId(Long id) {
+        Categoria categoria = new Categoria();
+        ReflectionTestUtils.setField(categoria, "id", id);
+        return categoria;
+    }
+
+    private Transacao despesaComCategoria(Categoria categoria) {
+        Transacao t = new Transacao();
+        t.setDescricao("Mercado");
+        t.setValor(new BigDecimal("50.00"));
+        t.setDataTransacao(LocalDate.now());
+        t.setTipo(TipoTransacao.DESPESA);
+        t.setUsuario(new Usuario());
+        t.setCategoria(categoria);
+        return t;
+    }
+
+    @Test
+    void deveAlterarCategoriaDaTransacao() {
+        Categoria antiga = categoriaComId(1L);
+        Categoria nova = categoriaComId(2L);
+        Transacao transacao = despesaComCategoria(antiga);
+
+        when(transacaoRepository.findById(10L)).thenReturn(Optional.of(transacao));
+        when(categoriaRepository.findById(2L)).thenReturn(Optional.of(nova));
+        when(transacaoRepository.save(any(Transacao.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        TransacaoResponseDTO resultado = transacaoService.alterarCategoria(10L, 2L);
+
+        assertEquals(2L, resultado.categoriaId());
+        assertSame(nova, transacao.getCategoria());   // CA03: só a nova categoria ficou
+        verify(transacaoRepository).save(transacao);
+    }
+
+    @Test
+    void deveLancarExcecaoQuandoNovaCategoriaNaoExiste() {
+        Transacao transacao = despesaComCategoria(categoriaComId(1L));
+
+        when(transacaoRepository.findById(10L)).thenReturn(Optional.of(transacao));
+        when(categoriaRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> transacaoService.alterarCategoria(10L, 99L));
+
+        verify(transacaoRepository, never()).save(any());
+    }
+
+    @Test
+    void deveLancarExcecaoQuandoTransacaoNaoExisteAoAlterarCategoria() {
+        when(transacaoRepository.findById(10L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> transacaoService.alterarCategoria(10L, 2L));
+
+        verifyNoInteractions(categoriaRepository);
     }
 }
