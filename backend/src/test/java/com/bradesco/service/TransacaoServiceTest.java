@@ -42,6 +42,7 @@ class TransacaoServiceTest {
     private TransacaoRequestDTO novaRequisicao() {
         return new TransacaoRequestDTO(
                 "Salário",
+                null,
                 new BigDecimal("1000.00"),
                 LocalDate.now(),
                 null,

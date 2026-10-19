@@ -6,6 +6,7 @@ import com.bradesco.entity.Categoria;
 import com.bradesco.entity.Transacao;
 import com.bradesco.entity.Usuario;
 import com.bradesco.enums.TipoTransacao;
+import com.bradesco.service.SugestaoCategoriaService;
 import com.bradesco.service.TransacaoService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,25 @@ class TransacaoControllerTest {
 
     @MockitoBean
     private TransacaoService transacaoService;
+
+    @MockitoBean 
+    private SugestaoCategoriaService sugestaoCategoriaService;
+
+    @Test
+    void deveRetornar200AoSugerirCategoria() throws Exception {
+
+        when(sugestaoCategoriaService.sugerirCategoria("Supermercado"))
+            .thenReturn("Alimentação");
+
+        mockMvc.perform(get("/transacoes/sugestao-categoria")
+                    .param("estabelecimento", "Supermercado"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message")
+                    .value("Sugestão de categoria gerada com sucesso."))
+            .andExpect(jsonPath("$.data")
+                    .value("Alimentação"));
+}    
 
     @Test
     void deveRetornar201AoCadastrarTransacao() throws Exception {

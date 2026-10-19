@@ -6,6 +6,7 @@ import com.bradesco.dto.request.TransacaoUpdateDTO;
 import com.bradesco.dto.response.ApiResponse;
 import com.bradesco.dto.response.TransacaoResponseDTO;
 import com.bradesco.entity.Transacao;
+import com.bradesco.service.SugestaoCategoriaService;
 import com.bradesco.service.TransacaoService;
 import jakarta.validation.Valid;
 
@@ -21,9 +22,28 @@ public class TransacaoController {
 
     private final TransacaoService transacaoService;
 
-    public TransacaoController(TransacaoService transacaoService) {
+    private final SugestaoCategoriaService sugestaoCategoriaService;
+
+    public TransacaoController(TransacaoService transacaoService, SugestaoCategoriaService sugestaoCategoriaService) {
         this.transacaoService = transacaoService;
+        this.sugestaoCategoriaService = sugestaoCategoriaService;
     }
+
+    @GetMapping("/sugestao-categoria")
+    public ResponseEntity<ApiResponse<String>> sugerirCategoria(
+        @RequestParam(required = false) String estabelecimento) {
+
+    String categoria =
+            sugestaoCategoriaService.sugerirCategoria(estabelecimento);
+
+    ApiResponse<String> response = new ApiResponse<>(
+            true,
+            "Sugestão de categoria gerada com sucesso.",
+            categoria
+    );
+
+    return ResponseEntity.ok(response);
+}
 
     @PostMapping
     public ResponseEntity<ApiResponse<TransacaoResponseDTO>> cadastrar(
