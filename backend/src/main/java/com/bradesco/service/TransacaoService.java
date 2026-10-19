@@ -46,6 +46,7 @@ public class TransacaoService {
         Transacao transacao = new Transacao();
 
         transacao.setDescricao(dados.descricao());
+        transacao.setEstabelecimento(dados.estabelecimento());
         transacao.setValor(dados.valor());
         transacao.setDataTransacao(dados.dataTransacao());
         transacao.setRecorrencia(dados.recorrencia());
@@ -119,6 +120,7 @@ public class TransacaoService {
             Transacao t = new Transacao();
 
             t.setDescricao(item.descricao());
+            t.setEstabelecimento(item.estabelecimento());
             t.setValor(item.valor());
             t.setDataTransacao(item.dataTransacao());
             t.setRecorrencia(item.recorrencia());

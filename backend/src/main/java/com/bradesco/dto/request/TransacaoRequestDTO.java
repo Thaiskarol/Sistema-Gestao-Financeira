@@ -15,6 +15,8 @@ public record TransacaoRequestDTO(
         @Size(max = 350, message = "A descrição deve ter no máximo 350 caracteres.")
         String descricao,
 
+        String estabelecimento,
+
         @NotNull(message = "O valor é obrigatório.")
         @Positive(message = "O valor deve ser maior que zero.")
         BigDecimal valor,
