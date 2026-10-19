@@ -165,4 +165,18 @@ public class TransacaoService {
                 transacao.getUsuario().getId()
         );
     }
+
+    @Transactional
+    public TransacaoResponseDTO alterarCategoria(Long transacaoId, Long novaCategoriaId) {
+
+        Transacao transacao = transacaoRepository.findById(transacaoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada."));
+
+        Categoria novaCategoria = categoriaRepository.findById(novaCategoriaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada."));
+
+        transacao.setCategoria(novaCategoria);
+
+        return toResponse(transacaoRepository.save(transacao));
+    }
 }
