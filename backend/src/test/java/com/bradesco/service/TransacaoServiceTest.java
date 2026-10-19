@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -118,4 +119,42 @@ class TransacaoServiceTest {
         assertThrows(ResourceNotFoundException.class,
                 () -> transacaoService.listarPorUsuario(1L));
     }
+
+    @Test
+    void deveClassificarTransacaoQuandoTransacaoECategoriaExistem() {
+        Categoria categoria = mock(Categoria.class);
+        when(categoria.getId()).thenReturn(1L);
+
+        Usuario usuario = mock(Usuario.class);
+        when(usuario.getId()).thenReturn(1L);
+
+        Transacao transacao = new Transacao();
+        transacao.setDescricao("Mercado");
+        transacao.setValor(new BigDecimal("200.00"));
+        transacao.setDataTransacao(LocalDate.now());
+        transacao.setTipo(TipoTransacao.DESPESA);
+        transacao.setUsuario(usuario);
+
+        when(transacaoRepository.findById(10L)).thenReturn(Optional.of(transacao));
+        when(categoriaRepository.findById(1L)).thenReturn(Optional.of(categoria));
+        when(transacaoRepository.save(any(Transacao.class)))
+            .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        TransacaoResponseDTO resultado = transacaoService.classificar(10L, 1L);
+
+        assertNotNull(resultado);
+        assertEquals(1L, resultado.categoriaId());
+        verify(transacaoRepository).save(any(Transacao.class));
+    }
+
+    @Test
+    void deveLancarExcecaoAoClassificarQuandoCategoriaNaoExiste() {
+        Transacao transacao = new Transacao();
+        when(transacaoRepository.findById(10L)).thenReturn(Optional.of(transacao));
+        when(categoriaRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> transacaoService.classificar(10L, 1L));
+    }
+
 }

@@ -85,6 +85,23 @@ public class TransacaoController {
         return ResponseEntity.ok(response);
     }
 
+    @PatchMapping("/{id}/categoria")
+    public ResponseEntity<ApiResponse<TransacaoResponseDTO>> classificar(
+            @PathVariable Long id,
+            @RequestParam Long categoriaId) {
+
+        TransacaoResponseDTO transacao = transacaoService.classificar(id, categoriaId);
+
+        ApiResponse<TransacaoResponseDTO> response = new ApiResponse<>(
+                true,
+                "Despesa classificada com sucesso.",
+                transacao
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Object>> excluir(
             @PathVariable Long id,

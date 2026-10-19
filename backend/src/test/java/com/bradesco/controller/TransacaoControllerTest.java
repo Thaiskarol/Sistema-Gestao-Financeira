@@ -23,7 +23,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -125,4 +127,32 @@ class TransacaoControllerTest {
                 .andExpect(jsonPath("$.data[0].descricao")
                         .value("Salário"));
     }
+
+    @Test
+    void deveRetornar200AoClassificarDespesa() throws Exception {
+
+        TransacaoResponseDTO item = new TransacaoResponseDTO(
+                10L,
+                "Mercado",
+                new BigDecimal("200.00"),
+                LocalDate.now(),
+                null,
+                TipoTransacao.DESPESA,
+                1L,
+                1L
+        );
+
+        when(transacaoService.classificar(eq(10L), eq(1L)))
+                .thenReturn(item);
+
+        mockMvc.perform(patch("/transacoes/10/categoria")
+                    .param("categoriaId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message")
+                        .value("Despesa classificada com sucesso."))
+                .andExpect(jsonPath("$.data.categoriaId").value(1));
+    }   
+
 }
+

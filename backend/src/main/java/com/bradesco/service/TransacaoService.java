@@ -88,6 +88,22 @@ public class TransacaoService {
         return toResponse(atualizada);
     }
 
+    @Transactional
+    public TransacaoResponseDTO classificar(Long transacaoId, Long categoriaId) {
+
+        Transacao transacao = transacaoRepository.findById(transacaoId)
+            .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada."));
+
+        Categoria categoria = categoriaRepository.findById(categoriaId)
+            .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada."));
+
+        transacao.setCategoria(categoria);
+
+        Transacao atualizada = transacaoRepository.save(transacao);
+        return toResponse(atualizada);
+    }
+
+
     public void excluir(Long id, Long usuarioId) {
 
         Transacao transacao = transacaoRepository.findById(id)
