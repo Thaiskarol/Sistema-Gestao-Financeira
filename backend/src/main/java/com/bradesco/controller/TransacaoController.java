@@ -3,6 +3,7 @@ package com.bradesco.controller;
 import com.bradesco.dto.request.ImportacaoRequestDTO;
 import com.bradesco.dto.request.TransacaoRequestDTO;
 import com.bradesco.dto.request.TransacaoUpdateDTO;
+import com.bradesco.dto.request.AlterarCategoriaDTO;
 import com.bradesco.dto.response.ApiResponse;
 import com.bradesco.dto.response.TransacaoResponseDTO;
 import com.bradesco.entity.Transacao;
@@ -105,6 +106,23 @@ public class TransacaoController {
         return ResponseEntity.ok(response);
     }
 
+    @PatchMapping("/{id}/categoria")
+    public ResponseEntity<ApiResponse<TransacaoResponseDTO>> classificar(
+            @PathVariable Long id,
+            @RequestParam Long categoriaId) {
+
+        TransacaoResponseDTO transacao = transacaoService.classificar(id, categoriaId);
+
+        ApiResponse<TransacaoResponseDTO> response = new ApiResponse<>(
+                true,
+                "Despesa classificada com sucesso.",
+                transacao
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Object>> excluir(
             @PathVariable Long id,
@@ -138,4 +156,21 @@ public class TransacaoController {
                 .status(HttpStatus.CREATED)
                 .body(response);
     }
+    
+    @PutMapping("/{id}/categoria")
+    public ResponseEntity<ApiResponse<TransacaoResponseDTO>> alterarCategoria(
+                @PathVariable Long id,
+                @Valid @RequestBody AlterarCategoriaDTO dados) {
+
+        TransacaoResponseDTO transacao =
+                transacaoService.alterarCategoria(id, dados.novaCategoriaId());
+
+        ApiResponse<TransacaoResponseDTO> response = new ApiResponse<>(
+                true,
+                "Categoria da despesa alterada com sucesso.",
+                transacao
+        );
+
+        return ResponseEntity.ok(response);
+        }
 }

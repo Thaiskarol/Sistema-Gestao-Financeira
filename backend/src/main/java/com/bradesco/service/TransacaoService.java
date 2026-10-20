@@ -89,6 +89,22 @@ public class TransacaoService {
         return toResponse(atualizada);
     }
 
+    @Transactional
+    public TransacaoResponseDTO classificar(Long transacaoId, Long categoriaId) {
+
+        Transacao transacao = transacaoRepository.findById(transacaoId)
+            .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada."));
+
+        Categoria categoria = categoriaRepository.findById(categoriaId)
+            .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada."));
+
+        transacao.setCategoria(categoria);
+
+        Transacao atualizada = transacaoRepository.save(transacao);
+        return toResponse(atualizada);
+    }
+
+
     public void excluir(Long id, Long usuarioId) {
 
         Transacao transacao = transacaoRepository.findById(id)
@@ -148,5 +164,19 @@ public class TransacaoService {
                 transacao.getCategoria().getId(),
                 transacao.getUsuario().getId()
         );
+    }
+
+    @Transactional
+    public TransacaoResponseDTO alterarCategoria(Long transacaoId, Long novaCategoriaId) {
+
+        Transacao transacao = transacaoRepository.findById(transacaoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada."));
+
+        Categoria novaCategoria = categoriaRepository.findById(novaCategoriaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada."));
+
+        transacao.setCategoria(novaCategoria);
+
+        return toResponse(transacaoRepository.save(transacao));
     }
 }
