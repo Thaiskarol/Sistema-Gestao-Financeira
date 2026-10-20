@@ -5,8 +5,10 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.bradesco.dto.response.ErrorDetail;
 import com.bradesco.dto.response.ErrorResponse;
@@ -67,5 +69,33 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(response);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleParametroAusente(
+              MissingServletRequestParameterException exception) {
+
+        ErrorResponse response = new ErrorResponse(
+                false,
+                "O parâmetro '" + exception.getParameterName() + "' é obrigatório.",
+                null,
+                List.of()
+        );
+
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleParametroInvalido(
+            MethodArgumentTypeMismatchException exception) {
+
+        ErrorResponse response = new ErrorResponse(
+                false,
+                "O parâmetro '" + exception.getName() + "' tem um valor inválido.",
+                null,
+                List.of()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 }
