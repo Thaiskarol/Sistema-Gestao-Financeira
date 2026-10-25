@@ -53,12 +53,35 @@ public class QuedaRendaService {
         YearMonth mesAnterior = mesAtual.minusMonths(1);
 
         BigDecimal receitaAtual =
-                receitasPorMes.getOrDefault(mesAtual, BigDecimal.ZERO);
+        receitasPorMes.getOrDefault(mesAtual, BigDecimal.ZERO);
 
-        BigDecimal receitaAnterior =
-                receitasPorMes.getOrDefault(mesAnterior, BigDecimal.ZERO);
+BigDecimal receitaAnterior =
+        receitasPorMes.getOrDefault(mesAnterior, BigDecimal.ZERO);
 
-        return Optional.empty();
+if (receitaAnterior.compareTo(BigDecimal.ZERO) == 0) {
+    return Optional.empty();
+}
+
+BigDecimal percentual = receitaAnterior
+        .subtract(receitaAtual)
+        .divide(receitaAnterior, 4, java.math.RoundingMode.HALF_UP)
+        .multiply(BigDecimal.valueOf(100));
+
+if (percentual.compareTo(BigDecimal.valueOf(15)) > 0) {
+
+    InsightDTO insight = new InsightDTO(
+            "QUEDA_RENDA",
+            null,
+            percentual,
+            "Sua receita mensal apresentou redução de "
+                    + percentual
+                    + "% em comparação ao período anterior."
+    );
+
+    return Optional.of(insight);
+}
+
+return Optional.empty();
     }
 
     private void validarUsuario(Long usuarioId) {
