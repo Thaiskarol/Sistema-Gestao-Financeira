@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   Eye,
@@ -15,10 +16,17 @@ export function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
+  const navigate = useNavigate();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setMessage("A autenticação será habilitada quando conectarmos o backend.");
+
+    if (!email.trim() || !password.trim()) {
+      setMessage("Preencha seu e-mail e sua senha.");
+      return;
+    }
+
+    navigate("/dashboard");
   }
 
   return (
@@ -42,7 +50,7 @@ export function Login() {
         {/* Logo */}
         <div className="relative z-10 flex items-center gap-3">
           <img
-            src="/logo.png"
+            src="/logo_branca.png"
             alt="Logo Gestão Financeira"
             className="size-11 object-contain"
           />

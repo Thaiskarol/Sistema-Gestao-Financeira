@@ -76,7 +76,7 @@ export function Register() {
           aria-label="Ir para a tela de login"
         >
           <img
-            src="/logo.png"
+            src="/logo_branca.png"
             alt="Logo Gestão Financeira"
             className="size-11 object-contain"
           />
