@@ -9,7 +9,6 @@ import {
   LogOut,
   Menu,
   PiggyBank,
-  Settings,
   Target,
   Wallet,
   X,
@@ -17,6 +16,7 @@ import {
   Lightbulb,
   TrendingUp,
   HeartPulse,
+  UserRound,
 } from "lucide-react";
 
 type AppLayoutProps = {
@@ -35,7 +35,7 @@ const navigation = [
   { label: "Investimentos", icon: PiggyBank, to: "/investimentos" },
   { label: "Metas", icon: Target, to: "/metas" },
   { label: "Saúde Financeira", icon: HeartPulse, to: "/saude-financeira" },
-  
+  { label: "Perfil / Configurações", icon: UserRound, to: "/perfil" },
 ];
 
 export function AppLayout({
@@ -47,10 +47,10 @@ export function AppLayout({
   const navigate = useNavigate();
 
   const currentPage =
-  navigation.find((item) => item.to === location.pathname)?.label ??
-  (location.pathname === "/integracao-bancaria"
-    ? "Integração bancária"
-    : "Dashboard");
+    navigation.find((item) => item.to === location.pathname)?.label ??
+    (location.pathname === "/integracao-bancaria"
+      ? "Integração bancária"
+      : "Dashboard");
 
   const sidebar = (
     <div className="flex h-full min-h-0 flex-col bg-white">
@@ -65,6 +65,7 @@ export function AppLayout({
             alt="Finanças"
             className="h-11 w-11 shrink-0 object-contain"
           />
+
           <span className="min-w-0">
             <span className="block text-base font-extrabold tracking-tight text-[#292929]">
               FINANÇAS
@@ -74,6 +75,7 @@ export function AppLayout({
             </span>
           </span>
         </NavLink>
+
         <button
           type="button"
           aria-label="Fechar menu"
@@ -109,9 +111,6 @@ export function AppLayout({
             </NavLink>
           );
         })}
-
-
-        
       </nav>
 
       <div className="border-t border-[#eeeeee] p-4">
@@ -119,6 +118,7 @@ export function AppLayout({
           <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#fbedf0] text-xs font-bold text-[#bd0c36]">
             AM
           </span>
+
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-semibold text-[#333]">
               Ana Martins
@@ -127,14 +127,17 @@ export function AppLayout({
               Minha conta
             </span>
           </span>
+
           <button
             type="button"
             aria-label="Opções da conta"
+            onClick={() => navigate("/perfil")}
             className="rounded-lg p-1 text-[#888] hover:bg-slate-100"
           >
             <ChevronDown size={17} />
           </button>
         </div>
+
         <button
           type="button"
           onClick={() => {
@@ -163,6 +166,7 @@ export function AppLayout({
             onClick={() => setMenuOpen(false)}
             className="absolute inset-0 bg-black/40"
           />
+
           <aside className="absolute inset-y-0 left-0 w-[min(300px,86vw)] shadow-xl">
             {sidebar}
           </aside>
@@ -180,45 +184,48 @@ export function AppLayout({
             >
               <Menu size={20} />
             </button>
+
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{currentPage}</p>
               <p className="text-xs text-[#888]">{subtitle}</p>
             </div>
           </div>
 
-          
-<div className="flex shrink-0 items-center gap-2 sm:gap-3">
-  <button
-    type="button"
-    onClick={() => navigate("/integracao-bancaria")}
-    title="Ir para integração bancária"
-    className="hidden items-center gap-2 rounded-full px-3 py-2 text-[11px] text-[#777] transition hover:bg-[#fbedf0] hover:text-[#bd0c36] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#bd0c36] sm:inline-flex"
-  >
-    <span className="size-[7px] rounded-full bg-[#bd0c36]" />
-    <span>Contas atualizadas</span>
-  </button>
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/integracao-bancaria")}
+              title="Ir para integração bancária"
+              className="hidden items-center gap-2 rounded-full px-3 py-2 text-[11px] text-[#777] transition hover:bg-[#fbedf0] hover:text-[#bd0c36] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#bd0c36] sm:inline-flex"
+            >
+              <span className="size-[7px] rounded-full bg-[#bd0c36]" />
+              <span>Contas atualizadas</span>
+            </button>
 
-  <button
-    type="button"
-    aria-label="Notificações"
-    className="relative rounded-xl border border-[#e5e5e5] p-2.5 text-[#555] hover:bg-slate-50"
-  >
-    <Bell size={18} />
-    <span className="absolute right-2 top-2 size-1.5 rounded-full bg-[#bd0c36]" />
-  </button>
+            <button
+              type="button"
+              aria-label="Notificações"
+              className="relative rounded-xl border border-[#e5e5e5] p-2.5 text-[#555] hover:bg-slate-50"
+            >
+              <Bell size={18} />
+              <span className="absolute right-2 top-2 size-1.5 rounded-full bg-[#bd0c36]" />
+            </button>
 
-  <button
-    type="button"
-    aria-label="Perfil de Ana Martins"
-    className="flex size-9 items-center justify-center rounded-full bg-[#fbedf0] text-xs font-bold text-[#bd0c36]"
-  >
-    AM
-  </button>
-</div>
-
+            <button
+              type="button"
+              aria-label="Abrir perfil de Ana Martins"
+              title="Perfil / Configurações"
+              onClick={() => navigate("/perfil")}
+              className="flex size-9 items-center justify-center rounded-full bg-[#fbedf0] text-xs font-bold text-[#bd0c36] transition hover:bg-[#f6dce2] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#bd0c36]"
+            >
+              AM
+            </button>
+          </div>
         </header>
 
-        <main className="min-w-0 p-4 sm:p-6 lg:p-7">{children}</main>
+        <main className="min-w-0 p-4 sm:p-6 lg:p-7">
+          {children}
+        </main>
       </div>
     </div>
   );

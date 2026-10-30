@@ -9,10 +9,62 @@ import {
   Mail,
   ShieldCheck,
   UserRound,
+  CalendarDays,
+  Fingerprint,
 } from "lucide-react";
+
+// Aplica a máscara do CPF enquanto o usuário digita
+function formatCPF(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) {
+    return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  }
+  if (digits.length <= 9) {
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+  }
+
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9, 11)}`;
+}
+
+// Valida os dígitos verificadores do CPF
+function isValidCPF(value: string) {
+  const cpf = value.replace(/\D/g, "");
+
+  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) {
+    return false;
+  }
+
+  let sum = 0;
+
+  for (let i = 0; i < 9; i++) {
+    sum += Number(cpf[i]) * (10 - i);
+  }
+
+  let remainder = (sum * 10) % 11;
+  if (remainder === 10) remainder = 0;
+
+  if (remainder !== Number(cpf[9])) {
+    return false;
+  }
+
+  sum = 0;
+
+  for (let i = 0; i < 10; i++) {
+    sum += Number(cpf[i]) * (11 - i);
+  }
+
+  remainder = (sum * 10) % 11;
+  if (remainder === 10) remainder = 0;
+
+  return remainder === Number(cpf[10]);
+}
 
 export function Register() {
   const [name, setName] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [birthDate, setBirthDate] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -28,6 +80,18 @@ export function Register() {
 
     if (name.trim().split(/\s+/).length < 2) {
       setMessage("Informe seu nome e sobrenome.");
+      setMessageType("error");
+      return;
+    }
+
+    if (!isValidCPF(cpf)) {
+      setMessage("Informe um CPF válido.");
+      setMessageType("error");
+      return;
+    }
+
+    if (!birthDate) {
+      setMessage("Informe sua data de nascimento.");
       setMessageType("error");
       return;
     }
@@ -69,7 +133,6 @@ export function Register() {
           className="pointer-events-none absolute -bottom-48 -left-24 size-136 rounded-full border border-white/10"
         />
 
-        {/* Logo: clicar leva para o login */}
         <Link
           to="/"
           className="relative z-10 flex w-fit items-center gap-3"
@@ -181,6 +244,67 @@ export function Register() {
                   onChange={(event) => setName(event.target.value)}
                   required
                   className="h-10 w-full rounded-xl border border-gray-300 bg-white pl-11 pr-4 text-base text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#C81035] focus:ring-2 focus:ring-[#C81035]/15"
+                />
+              </div>
+            </div>
+
+            {/* CPF */}
+            <div>
+              <label
+                htmlFor="register-cpf"
+                className="mb-1.5 block text-sm font-medium text-gray-800"
+              >
+                CPF
+              </label>
+
+              <div className="relative">
+                <Fingerprint
+                  aria-hidden="true"
+                  size={18}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+
+                <input
+                  id="register-cpf"
+                  name="cpf"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  placeholder="000.000.000-00"
+                  value={cpf}
+                  onChange={(event) => setCpf(formatCPF(event.target.value))}
+                  maxLength={14}
+                  required
+                  className="h-10 w-full rounded-xl border border-gray-300 bg-white pl-11 pr-4 text-base text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#C81035] focus:ring-2 focus:ring-[#C81035]/15"
+                />
+              </div>
+            </div>
+
+            {/* Data de nascimento */}
+            <div>
+              <label
+                htmlFor="register-birth-date"
+                className="mb-1.5 block text-sm font-medium text-gray-800"
+              >
+                Data de nascimento
+              </label>
+
+              <div className="relative">
+                <CalendarDays
+                  aria-hidden="true"
+                  size={18}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+
+                <input
+                  id="register-birth-date"
+                  name="birthDate"
+                  type="date"
+                  autoComplete="bday"
+                  value={birthDate}
+                  onChange={(event) => setBirthDate(event.target.value)}
+                  required
+                  className="h-10 w-full rounded-xl border border-gray-300 bg-white pl-11 pr-4 text-base text-gray-900 outline-none transition focus:border-[#C81035] focus:ring-2 focus:ring-[#C81035]/15"
                 />
               </div>
             </div>

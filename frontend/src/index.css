@@ -127,3 +127,91 @@
     @apply font-sans;
   }
 }
+
+/* Tema escuro global */
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #111827 !important;
+  color: #f3f4f6 !important;
+}
+
+/* Fundos dos componentes */
+html.dark [class~="bg-white"],
+html.dark [class*="bg-white/"] {
+  background-color: #1f2937 !important;
+}
+
+html.dark [class*="bg-[#f7f7f7]"],
+html.dark [class*="bg-gray-50"],
+html.dark [class*="bg-slate-50"] {
+  background-color: #111827 !important;
+}
+
+html.dark [class*="bg-[#fbedf0]"] {
+  background-color: #492433 !important;
+}
+
+/* Textos */
+html.dark [class*="text-[#292929]"],
+html.dark [class*="text-[#333]"],
+html.dark [class*="text-[#444]"],
+html.dark [class*="text-[#555]"],
+html.dark [class*="text-gray-900"],
+html.dark [class*="text-slate-900"] {
+  color: #f3f4f6 !important;
+}
+
+html.dark [class*="text-[#777]"],
+html.dark [class*="text-[#888]"],
+html.dark [class*="text-gray-500"],
+html.dark [class*="text-gray-600"] {
+  color: #c0c7d2 !important;
+}
+
+/* Bordas */
+html.dark [class*="border-[#dedede]"],
+html.dark [class*="border-[#eeeeee]"],
+html.dark [class*="border-[#e5e5e5]"],
+html.dark [class*="border-[#d8d8d8]"],
+html.dark [class*="border-gray-200"],
+html.dark [class*="border-slate-200"] {
+  border-color: #374151 !important;
+}
+
+/* Campos de formulário */
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background-color: #273449 !important;
+  color: #f3f4f6 !important;
+  border-color: #4b5563 !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+/* Cabeçalhos, diálogos e divisórias */
+html.dark header {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+html.dark hr {
+  border-color: #374151 !important;
+}
+
+html.dark [role="dialog"] {
+  background-color: #1f2937 !important;
+  color: #f3f4f6 !important;
+}
+
+/* Botões principais vinho */
+html.dark [class*="bg-[#bd0c36]"] {
+  background-color: #bd0c36 !important;
+  color: #ffffff !important;
+}

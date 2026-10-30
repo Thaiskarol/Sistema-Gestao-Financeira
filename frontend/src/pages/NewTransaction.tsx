@@ -12,7 +12,7 @@ export default function NewTransaction() {
   const [type, setType] = useState<TransactionType>("Despesa");
   const [description, setDescription] = useState("");
   const [value, setValue] = useState("");
-  const [date, setDate] = useState(
+  const [date, setDate] = useState(() =>
     new Date().toLocaleDateString("en-CA")
   );
   const [category, setCategory] = useState("Alimentação");
