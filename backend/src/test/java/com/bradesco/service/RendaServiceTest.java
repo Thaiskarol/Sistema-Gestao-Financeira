@@ -20,6 +20,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import org.mockito.ArgumentCaptor;
 
 @ExtendWith(MockitoExtension.class)
 class RendaServiceTest {
@@ -41,7 +42,7 @@ class RendaServiceTest {
                 1L
         );
     }
-
+    
     @Test
     void deveCadastrarRendaQuandoUsuarioExiste() {
         Usuario usuario = mock(Usuario.class);
@@ -65,5 +66,46 @@ class RendaServiceTest {
                 () -> rendaService.cadastrar(novaRequisicao()));
 
         verify(rendaRepository, never()).save(any());
+    }
+
+    private void prepararCadastroComSucesso() {
+        Usuario usuario = mock(Usuario.class);
+        when(usuario.getId()).thenReturn(1L);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuario));
+        when(rendaRepository.save(any(Renda.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
+    }
+
+    @Test
+    void deveCadastrarReceitaRecorrenteComTipoRecorrente() {
+        prepararCadastroComSucesso();
+
+        RendaRequestDTO dados = new RendaRequestDTO(
+                "Aluguel recebido", new BigDecimal("1200.00"), TipoRenda.SALARIO_LIQUIDO, 1L);
+
+        RendaResponseDTO resultado = rendaService.cadastrarReceitaRecorrente(dados);
+
+        assertEquals(TipoRenda.RECORRENTE, resultado.tipo());
+        assertEquals(new BigDecimal("1200.00"), resultado.valor());
+
+        ArgumentCaptor<Renda> captor = ArgumentCaptor.forClass(Renda.class);
+        verify(rendaRepository).save(captor.capture());
+        assertEquals(TipoRenda.RECORRENTE, captor.getValue().getTipo());
+    }
+
+    @Test
+    void deveCadastrarReceitaVariavelComTipoVariavel() {
+        prepararCadastroComSucesso();
+
+        RendaRequestDTO dados = new RendaRequestDTO(
+                "Freelance", new BigDecimal("800.00"), TipoRenda.SALARIO_LIQUIDO, 1L);
+
+        RendaResponseDTO resultado = rendaService.cadastrarReceitaVariavel(dados);
+
+        assertEquals(TipoRenda.VARIAVEL, resultado.tipo());
+        assertEquals(new BigDecimal("800.00"), resultado.valor());
+
+        ArgumentCaptor<Renda> captor = ArgumentCaptor.forClass(Renda.class);
+        verify(rendaRepository).save(captor.capture());
+        assertEquals(TipoRenda.VARIAVEL, captor.getValue().getTipo());
     }
 }

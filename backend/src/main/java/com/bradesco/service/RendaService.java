@@ -9,7 +9,7 @@ import com.bradesco.repository.RendaRepository;
 import com.bradesco.repository.UsuarioRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.bradesco.enums.TipoRenda;
 @Service
 public class RendaService {
 
@@ -44,5 +44,17 @@ public class RendaService {
                 renda.getTipo(),
                 renda.getUsuario().getId()
         );
+    }
+
+    @Transactional
+    public RendaResponseDTO cadastrarReceitaRecorrente(RendaRequestDTO dados) {
+        return cadastrar(new RendaRequestDTO(
+                dados.descricao(), dados.valor(), TipoRenda.RECORRENTE, dados.usuarioId()));
+    }
+
+    @Transactional
+    public RendaResponseDTO cadastrarReceitaVariavel(RendaRequestDTO dados) {
+        return cadastrar(new RendaRequestDTO(
+                dados.descricao(), dados.valor(), TipoRenda.VARIAVEL, dados.usuarioId()));
     }
 }

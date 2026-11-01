@@ -26,4 +26,24 @@ public class RendaController {
                 new ApiResponse<>(true, "Renda cadastrada com sucesso.", renda);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
+
+    @PostMapping("/recorrente")
+    public ResponseEntity<ApiResponse<RendaResponseDTO>> cadastrarRecorrente(
+            @Valid @RequestBody RendaRequestDTO dados) {
+
+        RendaResponseDTO salva = rendaService.cadastrarReceitaRecorrente(dados);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+            new ApiResponse<>(true, "Receita recorrente cadastrada com sucesso.", salva));
+    }
+
+    @PostMapping("/variavel")
+    public ResponseEntity<ApiResponse<RendaResponseDTO>> cadastrarVariavel(
+            @Valid @RequestBody RendaRequestDTO dados) {
+
+        RendaResponseDTO salva = rendaService.cadastrarReceitaVariavel(dados);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+            new ApiResponse<>(true, "Receita variável cadastrada com sucesso.", salva));
+    }
 }
