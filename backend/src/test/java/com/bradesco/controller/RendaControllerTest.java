@@ -67,4 +67,52 @@ class RendaControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
     }
+
+    @Test
+    void deveRetornar201AoCadastrarReceitaRecorrente() throws Exception {
+        RendaResponseDTO resposta = new RendaResponseDTO(
+                2L, "Aluguel recebido", new BigDecimal("1200.00"), TipoRenda.RECORRENTE, 1L);
+        when(rendaService.cadastrarReceitaRecorrente(any())).thenReturn(resposta);
+
+        String json = """
+                {
+                  "descricao": "Aluguel recebido",
+                  "valor": 1200.00,
+                  "tipo": "RECORRENTE",
+                  "usuarioId": 1
+                }
+                """;
+
+        mockMvc.perform(post("/rendas/recorrente")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Receita recorrente cadastrada com sucesso."))
+                .andExpect(jsonPath("$.data.tipo").value("RECORRENTE"));
+    }
+
+    @Test
+    void deveRetornar201AoCadastrarReceitaVariavel() throws Exception {
+        RendaResponseDTO resposta = new RendaResponseDTO(
+                3L, "Freelance", new BigDecimal("800.00"), TipoRenda.VARIAVEL, 1L);
+        when(rendaService.cadastrarReceitaVariavel(any())).thenReturn(resposta);
+
+        String json = """
+                {
+                  "descricao": "Freelance",
+                  "valor": 800.00,
+                  "tipo": "VARIAVEL",
+                  "usuarioId": 1
+                }
+                """;
+
+        mockMvc.perform(post("/rendas/variavel")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Receita variável cadastrada com sucesso."))
+                .andExpect(jsonPath("$.data.tipo").value("VARIAVEL"));
+    }
 }
