@@ -1,0 +1,6 @@
+﻿"Endpoint","MediaMs","MaiorMs","Tempos"
+"GET /patrimonio/evolucao","1793","2135","1491 / 2135 / 1503 / 1903 / 1932"
+"GET /score","1874","2392","2392 / 1666 / 1914 / 1693 / 1707"
+"GET /score/classificacao","1664","1833","1833 / 1779 / 1557 / 1578 / 1571"
+"GET /insights/aumento-gastos","1280","1428","1419 / 1342 / 1428 / 1020 / 1190"
+"GET /metas","8","11","11 / 7 / 8 / 7 / 9"
