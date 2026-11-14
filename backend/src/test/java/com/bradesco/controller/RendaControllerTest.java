@@ -2,6 +2,7 @@ package com.bradesco.controller;
 
 import com.bradesco.dto.response.RendaResponseDTO;
 import com.bradesco.enums.TipoRenda;
+import com.bradesco.exception.ResourceNotFoundException;
 import com.bradesco.service.RendaService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,9 +12,11 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -114,5 +117,30 @@ class RendaControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("Receita variável cadastrada com sucesso."))
                 .andExpect(jsonPath("$.data.tipo").value("VARIAVEL"));
+    }
+
+    @Test
+    void deveRetornar200AoListarRendas() throws Exception {
+        when(rendaService.listar(1L)).thenReturn(List.of(
+                new RendaResponseDTO(1L, "Salário mensal", new BigDecimal("3000.00"), TipoRenda.SALARIO_LIQUIDO, 1L),
+                new RendaResponseDTO(2L, "Freelance", new BigDecimal("800.00"), TipoRenda.VARIAVEL, 1L)));
+
+        mockMvc.perform(get("/rendas").param("usuarioId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Rendas listadas com sucesso."))
+                .andExpect(jsonPath("$.data[0].descricao").value("Salário mensal"))
+                .andExpect(jsonPath("$.data[1].tipo").value("VARIAVEL"));
+    }
+
+    @Test
+    void deveRetornar404AoListarRendasDeUsuarioInexistente() throws Exception {
+        when(rendaService.listar(99L))
+                .thenThrow(new ResourceNotFoundException("Usuário não encontrado."));
+
+        mockMvc.perform(get("/rendas").param("usuarioId", "99"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Usuário não encontrado."));
     }
 }

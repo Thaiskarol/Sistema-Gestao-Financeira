@@ -22,6 +22,8 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -134,7 +136,9 @@ class TransacaoControllerTest {
                 null,
                 TipoTransacao.RECEITA,
                 1L,
-                1L
+                1L,
+                "Empresa",
+                "Salário"
         );
 
         when(transacaoService.listarPorUsuario(eq(1L)))
@@ -145,6 +149,10 @@ class TransacaoControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].descricao")
+                        .value("Salário"))
+                .andExpect(jsonPath("$.data[0].estabelecimento")
+                        .value("Empresa"))
+                .andExpect(jsonPath("$.data[0].categoriaNome")
                         .value("Salário"));
     }
 
@@ -159,7 +167,9 @@ class TransacaoControllerTest {
                 null,
                 TipoTransacao.DESPESA,
                 1L,
-                1L
+                1L,
+                null,
+                null
         );
 
         when(transacaoService.classificar(eq(10L), eq(1L)))
@@ -178,7 +188,7 @@ class TransacaoControllerTest {
     void deveRetornar200AoAlterarCategoria() throws Exception {
         TransacaoResponseDTO retorno = new TransacaoResponseDTO(
             10L, "Mercado", new BigDecimal("50.00"), LocalDate.of(2026, 10, 17),
-            null, TipoTransacao.DESPESA, 2L, 1L);
+            null, TipoTransacao.DESPESA, 2L, 1L, null, null);
 
         when(transacaoService.alterarCategoria(10L, 2L)).thenReturn(retorno);
 
@@ -198,5 +208,35 @@ class TransacaoControllerTest {
                     .content("{}"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.errors[0].field").value("novaCategoriaId"));
+    }
+
+    @Test
+    void deveRetornar200AoBuscarUltimasTransacoesComLimite() throws Exception {
+
+        TransacaoResponseDTO item = new TransacaoResponseDTO(
+                10L, "Mercado", new BigDecimal("200.00"), LocalDate.now(),
+                null, TipoTransacao.DESPESA, 1L, 1L,
+                "Supermercado Central", "Alimentação");
+
+        when(transacaoService.listarUltimas(1L, 5)).thenReturn(List.of(item));
+
+        mockMvc.perform(get("/transacoes")
+                        .param("usuarioId", "1")
+                        .param("limite", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].estabelecimento").value("Supermercado Central"))
+                .andExpect(jsonPath("$.data[0].categoriaNome").value("Alimentação"));
+
+        verify(transacaoService, never()).listarPorUsuario(any());
+    }
+
+    @Test
+    void deveRetornar400QuandoLimiteNaoForNumero() throws Exception {
+
+        mockMvc.perform(get("/transacoes")
+                        .param("usuarioId", "1")
+                        .param("limite", "abc"))
+                .andExpect(status().isBadRequest());
     }
 }

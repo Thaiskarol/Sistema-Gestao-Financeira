@@ -10,10 +10,12 @@ import com.bradesco.exception.ResourceNotFoundException;
 import com.bradesco.repository.CategoriaRepository;
 import com.bradesco.repository.TransacaoRepository;
 import com.bradesco.repository.UsuarioRepository;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -215,5 +217,77 @@ class TransacaoServiceTest {
                 () -> transacaoService.alterarCategoria(10L, 2L));
 
         verifyNoInteractions(categoriaRepository);
+    }
+
+    private Transacao despesaCompleta(String descricao, String estabelecimento, String nomeCategoria) {
+        Categoria categoria = new Categoria();
+        ReflectionTestUtils.setField(categoria, "id", 3L);
+        categoria.setNome(nomeCategoria);
+
+        Usuario usuario = new Usuario();
+        ReflectionTestUtils.setField(usuario, "id", 1L);
+
+        Transacao transacao = new Transacao();
+        transacao.setDescricao(descricao);
+        transacao.setEstabelecimento(estabelecimento);
+        transacao.setValor(new BigDecimal("50.00"));
+        transacao.setDataTransacao(LocalDate.now());
+        transacao.setTipo(TipoTransacao.DESPESA);
+        transacao.setCategoria(categoria);
+        transacao.setUsuario(usuario);
+        return transacao;
+    }
+
+    @Test
+    void deveIncluirEstabelecimentoECategoriaNomeNaListagemCompleta() {
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(new Usuario()));
+        when(transacaoRepository.findByUsuarioId(1L))
+                .thenReturn(List.of(despesaCompleta("Compras", "Mercado Central", "Alimentação")));
+
+        List<TransacaoResponseDTO> resultado = transacaoService.listarPorUsuario(1L);
+
+        assertEquals("Mercado Central", resultado.get(0).estabelecimento());
+        assertEquals("Alimentação", resultado.get(0).categoriaNome());
+        assertEquals(3L, resultado.get(0).categoriaId());
+    }
+
+    @Test
+    void deveListarUltimasTransacoesComLimite() {
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(new Usuario()));
+        when(transacaoRepository.findByUsuarioIdOrderByDataTransacaoDesc(eq(1L), any(Pageable.class)))
+                .thenReturn(List.of(
+                        despesaCompleta("Mais recente", "Loja A", "Lazer"),
+                        despesaCompleta("Anterior", "Loja B", "Lazer")));
+
+        List<TransacaoResponseDTO> resultado = transacaoService.listarUltimas(1L, 5);
+
+        assertEquals(2, resultado.size());
+        assertEquals("Mais recente", resultado.get(0).descricao());
+        assertEquals("Loja A", resultado.get(0).estabelecimento());
+        assertEquals("Lazer", resultado.get(0).categoriaNome());
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(transacaoRepository).findByUsuarioIdOrderByDataTransacaoDesc(eq(1L), captor.capture());
+        assertEquals(0, captor.getValue().getPageNumber());
+        assertEquals(5, captor.getValue().getPageSize());
+    }
+
+    @Test
+    void deveRetornarListaVaziaQuandoLimiteForMenorQueUm() {
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(new Usuario()));
+
+        assertTrue(transacaoService.listarUltimas(1L, 0).isEmpty());
+
+        verify(transacaoRepository, never()).findByUsuarioIdOrderByDataTransacaoDesc(any(), any());
+    }
+
+    @Test
+    void deveLancarExcecaoAoListarUltimasQuandoUsuarioNaoExiste() {
+        when(usuarioRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> transacaoService.listarUltimas(99L, 5));
+
+        verify(transacaoRepository, never()).findByUsuarioIdOrderByDataTransacaoDesc(any(), any());
     }
 }

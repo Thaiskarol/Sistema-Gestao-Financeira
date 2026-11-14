@@ -15,6 +15,7 @@ import com.bradesco.repository.UsuarioRepository;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,6 +64,24 @@ public class TransacaoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
 
         return transacaoRepository.findByUsuarioId(usuarioId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    // Últimas N transações do usuário, da mais recente para a mais antiga
+    public List<TransacaoResponseDTO> listarUltimas(Long usuarioId, int limite) {
+
+        usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
+
+        // "Últimas 0 transações" (ou menos) é uma lista vazia
+        if (limite < 1) {
+            return List.of();
+        }
+
+        return transacaoRepository
+                .findByUsuarioIdOrderByDataTransacaoDesc(usuarioId, PageRequest.of(0, limite))
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -154,16 +173,7 @@ public class TransacaoService {
 
     private TransacaoResponseDTO toResponse(Transacao transacao) {
 
-        return new TransacaoResponseDTO(
-                transacao.getId(),
-                transacao.getDescricao(),
-                transacao.getValor(),
-                transacao.getDataTransacao(),
-                transacao.getRecorrencia(),
-                transacao.getTipo(),
-                transacao.getCategoria().getId(),
-                transacao.getUsuario().getId()
-        );
+        return TransacaoResponseDTO.from(transacao);
     }
 
     @Transactional
