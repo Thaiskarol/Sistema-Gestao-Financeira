@@ -15,12 +15,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import org.mockito.ArgumentCaptor;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class RendaServiceTest {
@@ -107,5 +109,54 @@ class RendaServiceTest {
         ArgumentCaptor<Renda> captor = ArgumentCaptor.forClass(Renda.class);
         verify(rendaRepository).save(captor.capture());
         assertEquals(TipoRenda.VARIAVEL, captor.getValue().getTipo());
+    }
+
+    private Renda rendaDe(Long id, String descricao, String valor, TipoRenda tipo) {
+        Usuario usuario = new Usuario();
+        ReflectionTestUtils.setField(usuario, "id", 1L);
+
+        Renda renda = new Renda();
+        ReflectionTestUtils.setField(renda, "id", id);
+        renda.setDescricao(descricao);
+        renda.setValor(new BigDecimal(valor));
+        renda.setTipo(tipo);
+        renda.setUsuario(usuario);
+        return renda;
+    }
+
+    @Test
+    void deveListarRendasDoUsuarioEmOrdemDeId() {
+        when(usuarioRepository.existsById(1L)).thenReturn(true);
+        // Propositalmente fora de ordem
+        when(rendaRepository.findByUsuarioId(1L)).thenReturn(List.of(
+                rendaDe(2L, "Freelance", "800.00", TipoRenda.VARIAVEL),
+                rendaDe(1L, "Salário", "3000.00", TipoRenda.SALARIO_LIQUIDO)));
+
+        List<RendaResponseDTO> resultado = rendaService.listar(1L);
+
+        assertEquals(2, resultado.size());
+        assertEquals(1L, resultado.get(0).id());
+        assertEquals("Salário", resultado.get(0).descricao());
+        assertEquals(new BigDecimal("3000.00"), resultado.get(0).valor());
+        assertEquals(TipoRenda.SALARIO_LIQUIDO, resultado.get(0).tipo());
+        assertEquals(2L, resultado.get(1).id());
+        assertEquals(1L, resultado.get(1).usuarioId());
+    }
+
+    @Test
+    void deveRetornarListaVaziaQuandoUsuarioNaoTemRendas() {
+        when(usuarioRepository.existsById(1L)).thenReturn(true);
+        when(rendaRepository.findByUsuarioId(1L)).thenReturn(List.of());
+
+        assertTrue(rendaService.listar(1L).isEmpty());
+    }
+
+    @Test
+    void deveLancarExcecaoAoListarRendasQuandoUsuarioNaoExiste() {
+        when(usuarioRepository.existsById(99L)).thenReturn(false);
+
+        assertThrows(ResourceNotFoundException.class, () -> rendaService.listar(99L));
+
+        verify(rendaRepository, never()).findByUsuarioId(any());
     }
 }

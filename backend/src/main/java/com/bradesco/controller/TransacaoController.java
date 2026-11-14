@@ -52,16 +52,7 @@ public class TransacaoController {
 
         Transacao transacao = transacaoService.cadastrar(dados);
 
-        TransacaoResponseDTO responseDTO = new TransacaoResponseDTO(
-                transacao.getId(),
-                transacao.getDescricao(),
-                transacao.getValor(),
-                transacao.getDataTransacao(),
-                transacao.getRecorrencia(),
-                transacao.getTipo(),
-                transacao.getCategoria().getId(),
-                transacao.getUsuario().getId()
-        );
+        TransacaoResponseDTO responseDTO = TransacaoResponseDTO.from(transacao);
 
         ApiResponse<TransacaoResponseDTO> response = new ApiResponse<>(
                 true,
@@ -76,10 +67,13 @@ public class TransacaoController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<TransacaoResponseDTO>>> listar(
-            @RequestParam Long usuarioId) {
+            @RequestParam Long usuarioId,
+            @RequestParam(required = false) Integer limite) {
 
-        List<TransacaoResponseDTO> transacoes =
-                transacaoService.listarPorUsuario(usuarioId);
+        // Sem "limite", devolve o histórico completo (comportamento anterior)
+        List<TransacaoResponseDTO> transacoes = (limite == null)
+                ? transacaoService.listarPorUsuario(usuarioId)
+                : transacaoService.listarUltimas(usuarioId, limite);
 
         ApiResponse<List<TransacaoResponseDTO>> response = new ApiResponse<>(
                 true,
