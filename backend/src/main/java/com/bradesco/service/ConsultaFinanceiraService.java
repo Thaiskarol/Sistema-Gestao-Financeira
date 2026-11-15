@@ -121,15 +121,6 @@ public class ConsultaFinanceiraService {
     }
 
     private TransacaoResponseDTO toResponse(Transacao t) {
-        return new TransacaoResponseDTO(
-            t.getId(),
-            t.getDescricao(),
-            t.getValor(),
-            t.getDataTransacao(),
-            t.getRecorrencia(),
-            t.getTipo(),
-            t.getCategoria() != null ? t.getCategoria().getId() : null,
-            t.getUsuario() != null ? t.getUsuario().getId() : null
-        );
+        return TransacaoResponseDTO.from(t);
     }
 }

@@ -9,6 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/rendas")
 public class RendaController {
@@ -45,5 +47,15 @@ public class RendaController {
 
         return ResponseEntity.status(HttpStatus.CREATED).body(
             new ApiResponse<>(true, "Receita variável cadastrada com sucesso.", salva));
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<RendaResponseDTO>>> listar(
+            @RequestParam("usuarioId") Long usuarioId) {
+
+        return ResponseEntity.ok(new ApiResponse<>(
+                true,
+                "Rendas listadas com sucesso.",
+                rendaService.listar(usuarioId)));
     }
 }

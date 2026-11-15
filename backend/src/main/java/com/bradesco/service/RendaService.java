@@ -10,6 +10,10 @@ import com.bradesco.repository.UsuarioRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.bradesco.enums.TipoRenda;
+
+import java.util.Comparator;
+import java.util.List;
+
 @Service
 public class RendaService {
 
@@ -56,5 +60,19 @@ public class RendaService {
     public RendaResponseDTO cadastrarReceitaVariavel(RendaRequestDTO dados) {
         return cadastrar(new RendaRequestDTO(
                 dados.descricao(), dados.valor(), TipoRenda.VARIAVEL, dados.usuarioId()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<RendaResponseDTO> listar(Long usuarioId) {
+
+        if (!usuarioRepository.existsById(usuarioId)) {
+            throw new ResourceNotFoundException("Usuário não encontrado.");
+        }
+
+        return rendaRepository.findByUsuarioId(usuarioId).stream()
+                .sorted(Comparator.comparing(Renda::getId,
+                        Comparator.nullsLast(Comparator.<Long>naturalOrder())))
+                .map(this::toResponse)
+                .toList();
     }
 }
