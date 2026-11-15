@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import java.time.YearMonth;
 
 import com.bradesco.dto.response.ApiResponse;
 import com.bradesco.dto.response.RelatorioMensalDTO;
@@ -20,19 +21,21 @@ public class RelatorioController {
         this.relatorioService = relatorioService;
     }
 
-    @GetMapping("/mensal")
-    public ResponseEntity<ApiResponse<RelatorioMensalDTO>> relatorioMensal(
-            @RequestParam Long usuarioId) {
+   @GetMapping("/mensal")
+public ResponseEntity<ApiResponse<RelatorioMensalDTO>> relatorioMensal(
+        @RequestParam Long usuarioId,
+        @RequestParam(required = false) YearMonth mes) {
 
-        RelatorioMensalDTO dados =
-                relatorioService.gerarRelatorioMensal(usuarioId);
+    RelatorioMensalDTO dados = mes == null
+            ? relatorioService.gerarRelatorioMensal(usuarioId)
+            : relatorioService.gerarRelatorioMensal(usuarioId, mes);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(
-                        true,
-                        "Relatório mensal gerado com sucesso.",
-                        dados
-                )
-        );
-    }
+    return ResponseEntity.ok(
+            new ApiResponse<>(
+                    true,
+                    "Relatório mensal gerado com sucesso.",
+                    dados
+            )
+    );
+}
 }

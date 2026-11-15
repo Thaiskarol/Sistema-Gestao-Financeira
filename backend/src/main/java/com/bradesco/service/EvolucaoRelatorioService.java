@@ -38,11 +38,21 @@ public class EvolucaoRelatorioService {
     }
 
     public EvolucaoRelatorioDTO evolucaoMensal(Long usuarioId) {
+    return evolucaoMensal(usuarioId, YearMonth.now());
+}
+
+public EvolucaoRelatorioDTO evolucaoMensal(Long usuarioId, YearMonth mesReferencia) {
 
     validarUsuario(usuarioId);
 
+    YearMonth mesAnterior = mesReferencia.minusMonths(1);
+
     List<Transacao> transacoes =
-            transacaoRepository.findByUsuarioId(usuarioId);
+            transacaoRepository.findByUsuarioIdAndDataTransacaoBetween(
+                    usuarioId,
+                    mesAnterior.atDay(1),
+                    mesReferencia.atEndOfMonth()
+            );
 
     Map<YearMonth, BigDecimal> despesasPorMes =
             transacoes.stream()
@@ -56,56 +66,45 @@ public class EvolucaoRelatorioService {
                             )
                     ));
 
-    YearMonth mesAtual = YearMonth.now();
-    YearMonth mesAnterior = mesAtual.minusMonths(1);
-
     BigDecimal totalMesAtual =
-            despesasPorMes.getOrDefault(mesAtual, BigDecimal.ZERO);
+            despesasPorMes.getOrDefault(mesReferencia, BigDecimal.ZERO);
 
- BigDecimal totalMesAnterior =
-        despesasPorMes.getOrDefault(mesAnterior, BigDecimal.ZERO);
+    BigDecimal totalMesAnterior =
+            despesasPorMes.getOrDefault(mesAnterior, BigDecimal.ZERO);
 
-if (totalMesAnterior.compareTo(BigDecimal.ZERO) == 0) {
+    if (totalMesAnterior.compareTo(BigDecimal.ZERO) == 0) {
+        return new EvolucaoRelatorioDTO(
+                totalMesAtual,
+                totalMesAnterior,
+                BigDecimal.ZERO,
+                "Sem base de comparação do mês anterior."
+        );
+    }
+
+    BigDecimal variacao = totalMesAtual
+            .subtract(totalMesAnterior)
+            .multiply(BigDecimal.valueOf(100))
+            .divide(totalMesAnterior, 2, java.math.RoundingMode.HALF_UP);
+
+    BigDecimal percentualDescricao = variacao.abs();
+
+    String descricao;
+
+    if (variacao.compareTo(BigDecimal.ZERO) > 0) {
+        descricao = "Gastos " + percentualDescricao
+                + "% maiores que o mês anterior.";
+    } else if (variacao.compareTo(BigDecimal.ZERO) < 0) {
+        descricao = "Gastos " + percentualDescricao
+                + "% menores que o mês anterior.";
+    } else {
+        descricao = "Gastos iguais ao mês anterior.";
+    }
 
     return new EvolucaoRelatorioDTO(
             totalMesAtual,
             totalMesAnterior,
-            BigDecimal.ZERO,
-            "Sem base de comparação do mês anterior."
+            variacao,
+            descricao
     );
 }
-
-BigDecimal variacao = totalMesAtual
-        .subtract(totalMesAnterior)
-        .multiply(BigDecimal.valueOf(100))
-        .divide(totalMesAnterior, 2, java.math.RoundingMode.HALF_UP);
-
-BigDecimal percentualDescricao = variacao.abs();
-
-String descricao;
-
-if (variacao.compareTo(BigDecimal.ZERO) > 0) {
-
-    descricao = "Gastos "
-            + percentualDescricao
-            + "% maiores que o mês anterior.";
-
-} else if (variacao.compareTo(BigDecimal.ZERO) < 0) {
-
-    descricao = "Gastos "
-            + percentualDescricao
-            + "% menores que o mês anterior.";
-
-} else {
-
-    descricao = "Gastos iguais ao mês anterior.";
-}
-
-return new EvolucaoRelatorioDTO(
-        totalMesAtual,
-        totalMesAnterior,
-        variacao,
-        descricao
-);
-  }  
 }

@@ -27,26 +27,27 @@ public class RelatorioService {
     }
 
     @Transactional(readOnly = true)
-    public RelatorioMensalDTO gerarRelatorioMensal(Long usuarioId) {
+public RelatorioMensalDTO gerarRelatorioMensal(Long usuarioId) {
+    return gerarRelatorioMensal(usuarioId, YearMonth.now());
+}
 
-        // Cada service abaixo já valida o usuário internamente
-        // (lança ResourceNotFoundException se não existir).
-        ResumoFinanceiroDTO resumo =
-                consultaFinanceiraService.consultarResumo(usuarioId);
+@Transactional(readOnly = true)
+public RelatorioMensalDTO gerarRelatorioMensal(Long usuarioId, YearMonth mes) {
 
-        var gastosPorCategoria =
-                gastosService.gastosPorCategoria(usuarioId);
+    ResumoFinanceiroDTO resumo =
+            consultaFinanceiraService.consultarResumo(usuarioId, mes);
 
-        EvolucaoRelatorioDTO evolucao =
-                evolucaoRelatorioService.evolucaoMensal(usuarioId);
+    var gastosPorCategoria =
+            gastosService.gastosPorCategoria(usuarioId, mes);
 
-        String mesReferencia = YearMonth.now().toString();
+    EvolucaoRelatorioDTO evolucao =
+            evolucaoRelatorioService.evolucaoMensal(usuarioId, mes);
 
-        return new RelatorioMensalDTO(
-                mesReferencia,
-                resumo,
-                gastosPorCategoria,
-                evolucao
-        );
-    }
+    return new RelatorioMensalDTO(
+            mes.toString(),
+            resumo,
+            gastosPorCategoria,
+            evolucao
+    );
+}
 }

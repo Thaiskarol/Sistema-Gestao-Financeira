@@ -1,5 +1,6 @@
 package com.bradesco.controller;
 
+import com.bradesco.dto.request.MetaAtualizacaoDTO;
 import com.bradesco.dto.request.MetaRequestDTO;
 import com.bradesco.dto.request.MetaValorAcumuladoDTO;
 import com.bradesco.dto.response.ApiResponse;
@@ -48,6 +49,30 @@ public class MetaController {
         return ResponseEntity.ok(
                 new ApiResponse<>(true, "Meta recuperada com sucesso.", meta));
     }
+
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<MetaResponseDTO>> atualizar(
+            @PathVariable Long id,
+            @Valid @RequestBody MetaAtualizacaoDTO dados) {
+
+        MetaResponseDTO meta = metaService.atualizar(id, dados);
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Meta atualizada com sucesso.", meta));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> excluir(
+            @PathVariable Long id,
+            @RequestParam Long usuarioId) {
+
+        metaService.excluir(id, usuarioId);
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Meta excluída com sucesso.", null));
+    }
+
 
     @PatchMapping("/{id}/valor-acumulado")
     public ResponseEntity<ApiResponse<MetaResponseDTO>> atualizarValorAcumulado(
