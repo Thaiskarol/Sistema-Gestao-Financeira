@@ -1,6 +1,7 @@
 package com.bradesco.service;
 
 import com.bradesco.dto.response.GrupoValorDTO;
+import java.time.YearMonth;
 import com.bradesco.entity.Categoria;
 import com.bradesco.entity.Transacao;
 import com.bradesco.enums.TipoTransacao;
@@ -148,4 +149,27 @@ public class GastosServiceTest {
 
         verifyNoInteractions(transacaoRepository);
     }
+
+    @Test
+void porCategoriaFiltraDespesasDoMesEspecifico() {
+    usuarioExiste();
+
+    despesasDoUsuario(
+            despesa("Alimentação", "Mercado", "100.00",
+                    LocalDate.of(2026, 9, 30)),
+            despesa("Alimentação", "Mercado", "30.00",
+                    LocalDate.of(2026, 10, 1)),
+            despesa("Alimentação", "Padaria", "20.00",
+                    LocalDate.of(2026, 10, 15)),
+            despesa("Transporte", "Uber", "10.00",
+                    LocalDate.of(2026, 11, 1))
+    );
+
+    List<GrupoValorDTO> resultado = gastosService.gastosPorCategoria(
+            1L, YearMonth.of(2026, 10));
+
+    assertEquals(1, resultado.size());
+    assertEquals("Alimentação", resultado.get(0).rotulo());
+    assertEquals(new BigDecimal("50.00"), resultado.get(0).valor());
+}
 }

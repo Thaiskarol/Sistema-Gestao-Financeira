@@ -61,7 +61,11 @@ class EvolucaoRelatorioServiceTest {
                         YearMonth.now()
                 );
 
-        when(transacaoRepository.findByUsuarioId(usuarioId))
+        when(transacaoRepository.findByUsuarioIdAndDataTransacaoBetween(
+        usuarioId,
+        YearMonth.now().minusMonths(1).atDay(1),
+        YearMonth.now().atEndOfMonth()
+))
                 .thenReturn(List.of(despesaAnterior, despesaAtual));
 
         EvolucaoRelatorioDTO resultado =
@@ -99,7 +103,11 @@ class EvolucaoRelatorioServiceTest {
                         YearMonth.now()
                 );
 
-        when(transacaoRepository.findByUsuarioId(usuarioId))
+        when(transacaoRepository.findByUsuarioIdAndDataTransacaoBetween(
+        usuarioId,
+        YearMonth.now().minusMonths(1).atDay(1),
+        YearMonth.now().atEndOfMonth()
+))
                 .thenReturn(List.of(despesaAnterior, despesaAtual));
 
         EvolucaoRelatorioDTO resultado =
@@ -134,7 +142,11 @@ System.out.println("Descrição: " + resultado.descricao());
                         YearMonth.now()
                 );
 
-        when(transacaoRepository.findByUsuarioId(usuarioId))
+       when(transacaoRepository.findByUsuarioIdAndDataTransacaoBetween(
+        usuarioId,
+        YearMonth.now().minusMonths(1).atDay(1),
+        YearMonth.now().atEndOfMonth()
+))
                 .thenReturn(List.of(despesaAtual));
 
         EvolucaoRelatorioDTO resultado =
@@ -195,7 +207,11 @@ void deveIgnorarReceitasNoCalculoDaEvolucao() {
 
     receitaAtual.setTipo(TipoTransacao.RECEITA);
 
-    when(transacaoRepository.findByUsuarioId(usuarioId))
+    when(transacaoRepository.findByUsuarioIdAndDataTransacaoBetween(
+        usuarioId,
+        YearMonth.now().minusMonths(1).atDay(1),
+        YearMonth.now().atEndOfMonth()
+))
             .thenReturn(List.of(
                     despesaAnterior,
                     despesaAtual,

@@ -8,6 +8,7 @@ import com.bradesco.repository.TransacaoRepository;
 import com.bradesco.repository.UsuarioRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.YearMonth;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -33,6 +34,21 @@ public class GastosService {
         validarUsuario(usuarioId);
         return agrupar(despesasDoUsuario(usuarioId), t -> t.getCategoria().getNome());
     }
+
+    @Transactional(readOnly = true)
+public List<GrupoValorDTO> gastosPorCategoria(Long usuarioId, YearMonth mes) {
+    validarUsuario(usuarioId);
+
+    LocalDate dataInicio = mes.atDay(1);
+    LocalDate dataFim = mes.atEndOfMonth();
+
+    List<Transacao> despesas = despesasDoUsuario(usuarioId).stream()
+            .filter(t -> !t.getDataTransacao().isBefore(dataInicio)
+                    && !t.getDataTransacao().isAfter(dataFim))
+            .toList();
+
+    return agrupar(despesas, t -> t.getCategoria().getNome());
+}
 
     @Transactional(readOnly = true)
     public List<GrupoValorDTO> gastosPorEstabelecimento(Long usuarioId) {

@@ -4,7 +4,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
+import java.time.YearMonth;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -56,4 +56,33 @@ class RelatorioControllerTest {
                 .andExpect(jsonPath("$.data.resumo.saldo").value(600.00))
                 .andExpect(jsonPath("$.data.gastosPorCategoria[0].rotulo").value("Alimentação"));
     }
+
+    @Test
+void deveRetornar200AoGerarRelatorioDeMesEspecifico() throws Exception {
+    RelatorioMensalDTO dados = new RelatorioMensalDTO(
+            "2026-10",
+            new ResumoFinanceiroDTO(
+                    new BigDecimal("1000.00"),
+                    new BigDecimal("400.00"),
+                    new BigDecimal("600.00"),
+                    new BigDecimal("600.00"),
+                    new BigDecimal("40.00")),
+            List.of(new GrupoValorDTO("Alimentação", new BigDecimal("300.00"))),
+            new EvolucaoRelatorioDTO(
+                    new BigDecimal("400.00"),
+                    new BigDecimal("500.00"),
+                    new BigDecimal("-20.00"),
+                    "Gastos 20.00% menores que o mês anterior."));
+
+    when(relatorioService.gerarRelatorioMensal(1L, YearMonth.of(2026, 10)))
+            .thenReturn(dados);
+
+    mockMvc.perform(get("/relatorios/mensal")
+                    .param("usuarioId", "1")
+                    .param("mes", "2026-10"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.mesReferencia").value("2026-10"))
+            .andExpect(jsonPath("$.data.resumo.saldo").value(600.00));
+}
 }

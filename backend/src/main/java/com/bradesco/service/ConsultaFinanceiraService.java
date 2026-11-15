@@ -8,6 +8,7 @@ import com.bradesco.exception.ResourceNotFoundException;
 import com.bradesco.repository.TransacaoRepository;
 import com.bradesco.repository.UsuarioRepository;
 import org.springframework.stereotype.Service;
+import java.time.YearMonth;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -58,6 +59,39 @@ public class ConsultaFinanceiraService {
             totalReceitas, totalDespesas, saldo,
             economiaAcumulada, percentualComprometimentoRenda);
     }
+
+    public ResumoFinanceiroDTO consultarResumo(Long usuarioId, YearMonth mes) {
+    validarUsuario(usuarioId);
+
+    LocalDate dataInicio = mes.atDay(1);
+    LocalDate dataFim = mes.atEndOfMonth();
+
+    List<Transacao> transacoes =
+            transacaoRepository.findByUsuarioIdAndDataTransacaoBetween(
+                    usuarioId, dataInicio, dataFim);
+
+    BigDecimal totalReceitas = somarPorTipo(transacoes, TipoTransacao.RECEITA);
+    BigDecimal totalDespesas = somarPorTipo(transacoes, TipoTransacao.DESPESA);
+    BigDecimal saldo = totalReceitas.subtract(totalDespesas);
+
+    BigDecimal economiaAcumulada = saldo;
+
+    BigDecimal percentualComprometimentoRenda;
+    if (totalReceitas.signum() == 0) {
+        percentualComprometimentoRenda = BigDecimal.ZERO;
+    } else {
+        percentualComprometimentoRenda = totalDespesas
+                .multiply(BigDecimal.valueOf(100))
+                .divide(totalReceitas, 2, RoundingMode.HALF_UP);
+    }
+
+    return new ResumoFinanceiroDTO(
+            totalReceitas,
+            totalDespesas,
+            saldo,
+            economiaAcumulada,
+            percentualComprometimentoRenda);
+}
 
     // Feature 02 — filtrar movimentações (todos os filtros opcionais)
     public List<TransacaoResponseDTO> filtrar(Long usuarioId, LocalDate dataInicio, LocalDate dataFim,
