@@ -1,5 +1,10 @@
 package com.bradesco.controller;
 
+import com.bradesco.dto.request.MetaAtualizacaoDTO;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import com.bradesco.dto.response.MetaResponseDTO;
 import com.bradesco.exception.ResourceNotFoundException;
 import com.bradesco.service.MetaService;
@@ -146,4 +151,67 @@ class MetaControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
     }
+
+
+    @Test
+    void deveRetornar200QuandoAtualizacaoValida() throws Exception {
+        when(metaService.atualizar(any(), any()))
+                .thenReturn(metaViagem(new BigDecimal("3000.00")));
+
+        String json = """
+                {
+                  "nome": "Viagem",
+                  "valorObjetivo": 15000.00,
+                  "dataDesejada": "%s",
+                  "usuarioId": 1
+                }
+                """.formatted(LocalDate.now().plusMonths(18));
+
+        mockMvc.perform(put("/metas/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Meta atualizada com sucesso."));
+    }
+
+    @Test
+    void deveRetornar400QuandoAtualizacaoComValorObjetivoZero() throws Exception {
+        String json = """
+                {
+                  "nome": "Viagem",
+                  "valorObjetivo": 0,
+                  "dataDesejada": "%s",
+                  "usuarioId": 1
+                }
+                """.formatted(LocalDate.now().plusMonths(18));
+
+        mockMvc.perform(put("/metas/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void deveRetornar200QuandoExclusaoValida() throws Exception {
+        mockMvc.perform(delete("/metas/1")
+                        .param("usuarioId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Meta excluída com sucesso."));
+    }
+
+    @Test
+    void deveRetornar404QuandoMetaNaoPertenceAoUsuarioNaExclusao() throws Exception {
+        doThrow(new ResourceNotFoundException("Meta não encontrada."))
+                .when(metaService).excluir(1L, 2L);
+
+        mockMvc.perform(delete("/metas/1")
+                        .param("usuarioId", "2"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Meta não encontrada."));
+    }
+
 }

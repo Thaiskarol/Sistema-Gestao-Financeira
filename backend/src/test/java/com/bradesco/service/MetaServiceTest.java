@@ -1,5 +1,6 @@
 package com.bradesco.service;
 
+import com.bradesco.dto.request.MetaAtualizacaoDTO;
 import com.bradesco.dto.request.MetaRequestDTO;
 import com.bradesco.dto.request.MetaValorAcumuladoDTO;
 import com.bradesco.dto.response.MetaResponseDTO;
@@ -164,4 +165,79 @@ class MetaServiceTest {
 
         verify(metaRepository, never()).save(any());
     }
+
+    
+    @Test
+    void deveAtualizarMetaPreservandoValorAcumulado() {
+        Usuario usuario = usuarioComId(1L);
+        Meta meta = metaExistente(usuario);
+
+        when(usuarioRepository.existsById(1L)).thenReturn(true);
+        when(metaRepository.findByIdAndUsuarioId(1L, 1L))
+                .thenReturn(Optional.of(meta));
+        when(metaRepository.save(any(Meta.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        MetaAtualizacaoDTO dados = new MetaAtualizacaoDTO(
+                "Casa",
+                new BigDecimal("20000.00"),
+                LocalDate.now().plusMonths(18),
+                1L
+        );
+
+        MetaResponseDTO resultado = metaService.atualizar(1L, dados);
+
+        assertEquals("Casa", resultado.nome());
+        assertEquals(new BigDecimal("20000.00"), resultado.valorObjetivo());
+        assertEquals(new BigDecimal("3000.00"), resultado.valorAcumulado());
+        assertEquals(LocalDate.now().plusMonths(18), resultado.dataDesejada());
+
+        verify(metaRepository).save(meta);
+    }
+
+    @Test
+    void deveLancarExcecaoAoEditarMetaDeOutroUsuario() {
+        when(usuarioRepository.existsById(2L)).thenReturn(true);
+        when(metaRepository.findByIdAndUsuarioId(1L, 2L))
+                .thenReturn(Optional.empty());
+
+        MetaAtualizacaoDTO dados = new MetaAtualizacaoDTO(
+                "Casa",
+                new BigDecimal("20000.00"),
+                LocalDate.now().plusMonths(18),
+                2L
+        );
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> metaService.atualizar(1L, dados));
+
+        verify(metaRepository, never()).save(any());
+    }
+
+    @Test
+    void deveExcluirMetaDoUsuario() {
+        Usuario usuario = mock(Usuario.class);
+        Meta meta = metaExistente(usuario);
+
+        when(usuarioRepository.existsById(1L)).thenReturn(true);
+        when(metaRepository.findByIdAndUsuarioId(1L, 1L))
+                .thenReturn(Optional.of(meta));
+
+        assertDoesNotThrow(() -> metaService.excluir(1L, 1L));
+
+        verify(metaRepository).delete(meta);
+    }
+
+    @Test
+    void deveLancarExcecaoAoExcluirMetaDeOutroUsuario() {
+        when(usuarioRepository.existsById(2L)).thenReturn(true);
+        when(metaRepository.findByIdAndUsuarioId(1L, 2L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> metaService.excluir(1L, 2L));
+
+        verify(metaRepository, never()).delete(any(Meta.class));
+    }
+
 }

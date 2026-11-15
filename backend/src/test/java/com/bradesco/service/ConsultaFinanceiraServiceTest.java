@@ -1,6 +1,7 @@
 package com.bradesco.service;
 
 import com.bradesco.dto.response.ResumoFinanceiroDTO;
+import java.time.YearMonth;
 import com.bradesco.dto.response.TransacaoResponseDTO;
 import com.bradesco.entity.Transacao;
 import com.bradesco.entity.Usuario;
@@ -21,6 +22,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -111,4 +113,39 @@ class ConsultaFinanceiraServiceTest {
 
         assertThat(resultado).hasSize(1);
     }
+
+    @Test
+void deveCalcularResumoFinanceiroDeMesEspecifico() {
+    Long usuarioId = 1L;
+    YearMonth mes = YearMonth.of(2026, 10);
+
+    when(usuarioRepository.findById(usuarioId))
+            .thenReturn(Optional.of(new Usuario()));
+
+    when(transacaoRepository.findByUsuarioIdAndDataTransacaoBetween(
+            usuarioId,
+            LocalDate.of(2026, 10, 1),
+            LocalDate.of(2026, 10, 31)))
+            .thenReturn(List.of(
+                    transacao(TipoTransacao.RECEITA, "2000.00",
+                            LocalDate.of(2026, 10, 10)),
+                    transacao(TipoTransacao.DESPESA, "500.00",
+                            LocalDate.of(2026, 10, 15))
+            ));
+
+    ResumoFinanceiroDTO resumo =
+            consultaFinanceiraService.consultarResumo(usuarioId, mes);
+
+    assertThat(resumo.totalReceitas()).isEqualByComparingTo("2000.00");
+    assertThat(resumo.totalDespesas()).isEqualByComparingTo("500.00");
+    assertThat(resumo.saldo()).isEqualByComparingTo("1500.00");
+    assertThat(resumo.economiaAcumulada()).isEqualByComparingTo("1500.00");
+    assertThat(resumo.percentualComprometimentoRenda())
+            .isEqualByComparingTo("25.00");
+
+    verify(transacaoRepository).findByUsuarioIdAndDataTransacaoBetween(
+            usuarioId,
+            mes.atDay(1),
+            mes.atEndOfMonth());
+}
 }

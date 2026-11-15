@@ -1,5 +1,6 @@
 package com.bradesco.service;
 
+import com.bradesco.dto.request.MetaAtualizacaoDTO;
 import com.bradesco.dto.request.MetaRequestDTO;
 import com.bradesco.dto.request.MetaValorAcumuladoDTO;
 import com.bradesco.dto.response.MetaResponseDTO;
@@ -56,6 +57,31 @@ public class MetaService {
         validarUsuario(usuarioId);
         return toResponse(buscarMeta(metaId, usuarioId));
     }
+
+
+    @Transactional
+    public MetaResponseDTO atualizar(Long metaId, MetaAtualizacaoDTO dados) {
+        validarUsuario(dados.usuarioId());
+
+        Meta meta = buscarMeta(metaId, dados.usuarioId());
+
+        meta.setNome(dados.nome());
+        meta.setValorObjetivo(dados.valorObjetivo());
+        meta.setDataDesejada(dados.dataDesejada());
+
+        Meta salva = metaRepository.save(meta);
+        return toResponse(salva);
+    }
+
+    @Transactional
+    public void excluir(Long metaId, Long usuarioId) {
+        validarUsuario(usuarioId);
+
+        Meta meta = buscarMeta(metaId, usuarioId);
+
+        metaRepository.delete(meta);
+    }
+
 
     @Transactional
     public MetaResponseDTO atualizarValorAcumulado(Long metaId, MetaValorAcumuladoDTO dados) {
