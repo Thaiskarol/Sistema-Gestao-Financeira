@@ -215,3 +215,8 @@ html.dark [class*="bg-[#bd0c36]"] {
   background-color: #bd0c36 !important;
   color: #ffffff !important;
 }
+/* Oculta o botão nativo de revelar senha do Microsoft Edge */
+.password-input-hide-native::-ms-reveal,
+.password-input-hide-native::-ms-clear {
+  display: none;
+}

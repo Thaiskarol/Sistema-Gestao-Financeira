@@ -1,4 +1,6 @@
+
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Download,
   TrendingUp,
@@ -21,32 +23,12 @@ import {
   Legend,
 } from "recharts";
 import { AppLayout } from "../layouts/AppLayout";
-
-const monthlyData = [
-  { month: "Jan", receitas: 7200, despesas: 4100 },
-  { month: "Fev", receitas: 7800, despesas: 4700 },
-  { month: "Mar", receitas: 6500, despesas: 3500 },
-  { month: "Abr", receitas: 8900, despesas: 5800 },
-  { month: "Mai", receitas: 8200, despesas: 5200 },
-  { month: "Jun", receitas: 12820, despesas: 8480 },
-];
-
-const categoryData = [
-  { name: "Moradia", value: 1820, color: "#19435d" },
-  { name: "Alimentação", value: 1210, color: "#970b2e" },
-  { name: "Transporte", value: 780, color: "#e5a900" },
-  { name: "Lazer", value: 570, color: "#30885c" },
-  { name: "Outros", value: 914, color: "#aeb8c2" },
-];
-
-const monthlyDetails = [
-  { month: "Janeiro", income: 7200, expenses: 4100 },
-  { month: "Fevereiro", income: 7800, expenses: 4700 },
-  { month: "Março", income: 6500, expenses: 3500 },
-  { month: "Abril", income: 8900, expenses: 5800 },
-  { month: "Maio", income: 8200, expenses: 5200 },
-  { month: "Junho", income: 12820, expenses: 8480 },
-];
+import { nomeMes, rotuloMes } from "@/lib/format";
+import {
+  getEvolucaoDespesas,
+  getEvolucaoReceitas,
+  getGastosPorCategoria,
+} from "@/services/financeiro";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", {
@@ -60,24 +42,141 @@ const percentage = (value: number) =>
     maximumFractionDigits: 1,
   })}%`;
 
+  const CORES = ["#19435d", "#970b2e", "#e5a900", "#30885c", "#aeb8c2"];
+
 export default function Reports() {
+
+  const receitasQ = useQuery({
+    queryKey: ["evolucao-receitas"],
+    queryFn: getEvolucaoReceitas,
+  });
+
+  const despesasQ = useQuery({
+    queryKey: ["evolucao-despesas"],
+    queryFn: getEvolucaoDespesas,
+  });
+
+  const gastosQ = useQuery({
+    queryKey: ["gastos-categoria"],
+    queryFn: getGastosPorCategoria,
+  });
+
+  const erro = (receitasQ.error ?? despesasQ.error ?? gastosQ.error) as
+    | Error
+    | null;
+
+  // Mês a mês: junta receitas e despesas
+  const monthlyData = useMemo(() => {
+    const meses = new Map<
+      string,
+      { receitas: number; despesas: number }
+    >();
+
+    (receitasQ.data ?? []).forEach((i) =>
+      meses.set(i.mes, {
+        receitas: i.valor,
+        despesas: meses.get(i.mes)?.despesas ?? 0,
+      }),
+    );
+
+    (despesasQ.data ?? []).forEach((i) =>
+      meses.set(i.mes, {
+        receitas: meses.get(i.mes)?.receitas ?? 0,
+        despesas: i.valor,
+      }),
+    );
+
+    return [...meses.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([mes, v]) => ({
+        mes,
+        month: rotuloMes(mes),
+        receitas: v.receitas,
+        despesas: v.despesas,
+      }));
+  }, [receitasQ.data, despesasQ.data]);
+
+  // Tabela de detalhes por mês
+  const monthlyDetails = useMemo(
+    () =>
+      monthlyData.map((m) => ({
+        month: nomeMes(m.mes),
+        income: m.receitas,
+        expenses: m.despesas,
+      })),
+    [monthlyData],
+  );
+
+  // Pizza: 4 maiores categorias + "Outros"
+  const categoryData = useMemo(() => {
+    const ordenado = [...(gastosQ.data ?? [])].sort(
+      (a, b) => b.valor - a.valor,
+    );
+
+    const lista = ordenado
+      .slice(0, 4)
+      .map((g, i) => ({
+        name: g.rotulo,
+        value: g.valor,
+        color: CORES[i],
+      }));
+
+    const resto = ordenado
+      .slice(4)
+      .reduce((soma, g) => soma + g.valor, 0);
+
+    if (resto > 0) {
+      lista.push({
+        name: "Outros",
+        value: resto,
+        color: CORES[4],
+      });
+    }
+
+    return lista;
+  }, [gastosQ.data]);
+
+  // Variação do último mês contra o anterior
+  const variacao = (atual: number, anterior: number) =>
+    anterior > 0 ? ((atual - anterior) / anterior) * 100 : 0;
+
+  const ultimo = monthlyData[monthlyData.length - 1];
+  const penultimo = monthlyData[monthlyData.length - 2];
+
+  const incomeChange = variacao(
+    ultimo?.receitas ?? 0,
+    penultimo?.receitas ?? 0,
+  );
+
+  const expenseChange = variacao(
+    ultimo?.despesas ?? 0,
+    penultimo?.despesas ?? 0,
+  );
+
   const [period, setPeriod] = useState("6");
 
   const visibleMonths = Number(period);
 
   const chartData = useMemo(
     () => monthlyData.slice(-visibleMonths),
-    [visibleMonths]
+    [monthlyData, visibleMonths],
   );
 
   const details = useMemo(
     () => monthlyDetails.slice(-visibleMonths).reverse(),
-    [visibleMonths]
+    [monthlyDetails, visibleMonths],
   );
 
   const totals = useMemo(() => {
-    const income = chartData.reduce((sum, item) => sum + item.receitas, 0);
-    const expenses = chartData.reduce((sum, item) => sum + item.despesas, 0);
+    const income = chartData.reduce(
+      (sum, item) => sum + item.receitas,
+      0,
+    );
+
+    const expenses = chartData.reduce(
+      (sum, item) => sum + item.despesas,
+      0,
+    );
 
     return {
       income,
@@ -89,11 +188,8 @@ export default function Reports() {
 
   const categoryTotal = categoryData.reduce(
     (sum, item) => sum + item.value,
-    0
+    0,
   );
-
-  const incomeChange = 9.8;
-  const expenseChange = 3.2;
 
   function downloadReport() {
     const header = [
@@ -137,6 +233,12 @@ export default function Reports() {
   return (
     <AppLayout>
       <section className="space-y-5 sm:space-y-6">
+        {erro && (
+          <p role="alert" className="text-sm text-[#970b2e]">
+            Não foi possível carregar os dados do relatório: {erro.message}
+          </p>
+        )}
+
         {/* Cabeçalho */}
         <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
           <div>
@@ -375,7 +477,10 @@ export default function Reports() {
                     {category.name}
                   </span>
                   <span className="text-xs font-semibold text-[#444]">
-                    {Math.round((category.value / categoryTotal) * 100)}%
+                    {categoryTotal > 0
+                      ? Math.round((category.value / categoryTotal) * 100)
+                      : 0}
+                    %
                   </span>
                 </div>
               ))}

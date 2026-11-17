@@ -1,4 +1,4 @@
-import { useState, type ReactNode, type FormEvent } from "react";
+import { useMemo, useState, type ReactNode, type FormEvent } from "react";
 import {
   ArrowUpRight,
   HeartPulse,
@@ -18,21 +18,16 @@ import {
 } from "recharts";
 import { AppLayout } from "../layouts/AppLayout";
 
+import { useQuery } from "@tanstack/react-query";
+import { rotuloMes } from "@/lib/format";
+import { getEvolucaoPatrimonial } from "@/services/investimentos";
+
 const formatarMoeda = (valor: number) =>
   valor.toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
   });
 
-const historicoPatrimonio = [
-  { mes: "Dez", valor: 1800 },
-  { mes: "Jan", valor: 3200 },
-  { mes: "Fev", valor: 4700 },
-  { mes: "Mar", valor: 6250 },
-  { mes: "Abr", valor: 7200 },
-  { mes: "Mai", valor: 8300 },
-  { mes: "Jun", valor: 9400 },
-];
 
 const carteira = [
   { nome: "Renda fixa", valor: 25608, cor: "bg-[#193f59]" },
@@ -95,10 +90,24 @@ export default function Investimentos() {
   const patrimonioTotal = totalCarteira + totalAdicionado;
   const reservaEmergencia = 12500;
 
-  const dadosGrafico =
-    periodo === "6"
-      ? historicoPatrimonio.slice(-6)
-      : historicoPatrimonio;
+  const patrimonioQ = useQuery({
+  queryKey: ["patrimonio"],
+  queryFn: getEvolucaoPatrimonial,
+});
+
+const historicoPatrimonio = useMemo(
+  () =>
+    (patrimonioQ.data ?? []).map((p) => ({
+      mes: rotuloMes(p.mes),
+      valor: p.patrimonioAcumulado,
+    })),
+  [patrimonioQ.data],
+);
+
+const dadosGrafico =
+  periodo === "6"
+    ? historicoPatrimonio.slice(-6)
+    : historicoPatrimonio.slice(-12);
 
   function adicionarInvestimento(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

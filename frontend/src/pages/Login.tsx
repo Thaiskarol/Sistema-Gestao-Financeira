@@ -180,8 +180,7 @@ export function Login() {
                     setMessage("");
                   }}
                   required
-                  className="h-11 w-full rounded-xl border border-gray-300 bg-white pl-11 pr-12 text-base text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#C81035] focus:ring-2 focus:ring-[#C81035]/15"
-                />
+                  className="password-input-hide-native h-11 w-full rounded-xl border border-gray-300 bg-white pl-11 pr-12 text-base text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#C81035] focus:ring-2 focus:ring-[#C81035]/15"        />
 
                 <button
                   type="button"
