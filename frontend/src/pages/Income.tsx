@@ -1,4 +1,6 @@
+
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowDownLeft,
   ArrowRight,
@@ -7,12 +9,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { AppLayout } from "../layouts/AppLayout";
-
-const fontesDeRenda = [
-  { nome: "Salário", valor: 7850, percentual: 88 },
-  { nome: "Freelance", valor: 1000, percentual: 11 },
-  { nome: "Rendimentos", valor: 126.42, percentual: 1 },
-];
+import { getDistribuicao, getRendas } from "@/services/renda";
 
 const formatarMoeda = (valor: number) =>
   valor.toLocaleString("pt-BR", {
@@ -24,16 +21,39 @@ export default function Renda() {
   const [periodo, setPeriodo] = useState("Junho de 2025");
   const [sugestaoAplicada, setSugestaoAplicada] = useState(false);
 
-  const rendaTotal = fontesDeRenda.reduce(
-    (total, fonte) => total + fonte.valor,
+  const rendasQ = useQuery({
+    queryKey: ["rendas"],
+    queryFn: getRendas,
+  });
+
+  const distQ = useQuery({
+    queryKey: ["distribuicao"],
+    queryFn: getDistribuicao,
+  });
+
+  const erro = (rendasQ.error ?? distQ.error) as Error | null;
+
+  const rendaTotal = distQ.data?.rendaTotal ?? 0;
+
+  // Fontes de renda: percentual calculado em cima do total
+  const totalFontes = (rendasQ.data ?? []).reduce(
+    (soma, item) => soma + item.valor,
     0,
   );
 
+  const fontesDeRenda = (rendasQ.data ?? []).map((r) => ({
+    nome: r.descricao,
+    valor: r.valor,
+    percentual:
+      totalFontes > 0 ? Math.round((r.valor / totalFontes) * 100) : 0,
+  }));
+
+  // Distribuição 50/30/20 calculada pelo backend
   const distribuicao = [
     {
       nome: "Necessidades",
       percentual: 50,
-      valor: rendaTotal * 0.5,
+      valor: distQ.data?.necessidades ?? 0,
       descricao: "Moradia, alimentação e contas",
       cor: "bg-[#193f59]",
       marcador: "bg-[#193f59]",
@@ -41,7 +61,7 @@ export default function Renda() {
     {
       nome: "Desejos",
       percentual: 30,
-      valor: rendaTotal * 0.3,
+      valor: distQ.data?.desejos ?? 0,
       descricao: "Lazer, compras e experiências",
       cor: "bg-[#bd0c36]",
       marcador: "bg-[#bd0c36]",
@@ -49,7 +69,7 @@ export default function Renda() {
     {
       nome: "Poupança / investimentos",
       percentual: 20,
-      valor: rendaTotal * 0.2,
+      valor: distQ.data?.investimentos ?? 0,
       descricao: "Construção de patrimônio",
       cor: "bg-[#32885e]",
       marcador: "bg-[#32885e]",
@@ -62,6 +82,12 @@ export default function Renda() {
         {/* Título e período */}
         <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
+            {erro && (
+              <p role="alert" className="mb-3 text-sm text-red-600">
+                Não foi possível carregar os dados de renda: {erro.message}
+              </p>
+            )}
+
             <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#970b2e]">
               Visão financeira
             </p>
@@ -107,7 +133,7 @@ export default function Renda() {
               {formatarMoeda(rendaTotal)}
             </p>
             <p className="relative mt-2 text-xs text-[#888]">
-              Valores demonstrativos de {periodo.toLowerCase()}
+              Valores atuais
             </p>
           </article>
 
@@ -232,7 +258,6 @@ export default function Renda() {
             </button>
           </div>
         </section>
-
       </div>
     </AppLayout>
   );

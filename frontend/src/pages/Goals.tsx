@@ -1,4 +1,7 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ultimoDiaDoMes } from "@/lib/format";
+import { criarMeta as criarMetaApi, getMetas } from "@/services/metas";
 import {
   Plus,
   Target,
@@ -25,48 +28,17 @@ type Meta = {
   icone: "carro" | "viagem" | "imovel" | "reserva";
 };
 
-const metasIniciais: Meta[] = [
-  {
-    id: 1,
-    nome: "Carro",
-    categoria: "Veículo",
-    objetivo: 45000,
-    acumulado: 18200,
-    prazo: "Nov 2027",
-    cor: "navy",
-    icone: "carro",
-  },
-  {
-    id: 2,
-    nome: "Viagem",
-    categoria: "Lazer",
-    objetivo: 18000,
-    acumulado: 8450,
-    prazo: "Jul 2026",
-    cor: "navy",
-    icone: "viagem",
-  },
-  {
-    id: 3,
-    nome: "Imóvel",
-    categoria: "Moradia",
-    objetivo: 150000,
-    acumulado: 42000,
-    prazo: "Dez 2029",
-    cor: "wine",
-    icone: "imovel",
-  },
-  {
-    id: 4,
-    nome: "Reserva de emergência",
-    categoria: "Segurança financeira",
-    objetivo: 20000,
-    acumulado: 12500,
-    prazo: "Dez 2026",
-    cor: "green",
-    icone: "reserva",
-  },
-];
+type Extras = Record<number, { categoria: string; icone: Meta["icone"]; cor: string }>;
+
+const EXTRAS_KEY = "financialMetasExtras";
+
+function lerExtras(): Extras {
+  try {
+    return JSON.parse(localStorage.getItem(EXTRAS_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
 
 const formatarMoeda = (valor: number) =>
   valor.toLocaleString("pt-BR", {
@@ -91,7 +63,6 @@ function IconeMeta({ tipo }: { tipo: Meta["icone"] }) {
 }
 
 export default function Goals() {
-  const [metas, setMetas] = useState(metasIniciais);
   const [modalAberto, setModalAberto] = useState(false);
   const [metaSelecionada, setMetaSelecionada] = useState<Meta | null>(null);
   const [menuAberto, setMenuAberto] = useState<number | null>(null);
@@ -102,6 +73,43 @@ export default function Goals() {
   const [prazo, setPrazo] = useState("");
   const [categoria, setCategoria] = useState("Outros");
   const [icone, setIcone] = useState<Meta["icone"]>("reserva");
+
+  const queryClient = useQueryClient();
+  const metasQ = useQuery({ queryKey: ["metas"], queryFn: getMetas });
+  const metas: Meta[] = useMemo(() => {
+    const extras = lerExtras();
+    return (metasQ.data ?? []).map((m) => ({
+      id: m.id,
+      nome: m.nome,
+      categoria: extras[m.id]?.categoria ?? "Outros",
+      objetivo: m.valorObjetivo,
+      acumulado: m.valorAcumulado,
+      prazo: new Date(`${m.dataDesejada}T12:00:00`).toLocaleDateString("pt-BR", {
+        month: "short",
+        year: "numeric",
+      }),
+      cor: extras[m.id]?.cor ?? "navy",
+      icone: extras[m.id]?.icone ?? "reserva",
+    }));
+  }, [metasQ.data]);
+
+  const criar = useMutation({
+    mutationFn: criarMetaApi,
+    onSuccess: (novaMeta) => {
+      const extras = lerExtras();
+      extras[novaMeta.id] = { categoria, icone, cor: "navy" };
+      localStorage.setItem(EXTRAS_KEY, JSON.stringify(extras));
+      queryClient.invalidateQueries({ queryKey: ["metas"] });
+      setNome("");
+      setObjetivo("");
+      setAcumulado("0");
+      setPrazo("");
+      setCategoria("Outros");
+      setIcone("reserva");
+      setModalAberto(false);
+    },
+    onError: (e) => window.alert((e as Error).message),
+  });
 
   const totalAcumulado = metas.reduce(
     (total, meta) => total + meta.acumulado,
@@ -118,51 +126,26 @@ export default function Goals() {
 
   function criarMeta(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     const valorObjetivo = Number(objetivo);
     const valorAcumulado = Number(acumulado || 0);
-
     if (
-      !nome.trim() ||
-      !prazo ||
-      !Number.isFinite(valorObjetivo) ||
-      valorObjetivo <= 0 ||
-      !Number.isFinite(valorAcumulado) ||
-      valorAcumulado < 0
+      !nome.trim() || !prazo ||
+      !Number.isFinite(valorObjetivo) || valorObjetivo <= 0 ||
+      !Number.isFinite(valorAcumulado) || valorAcumulado < 0
     ) {
       return;
     }
-
-    setMetas((atuais) => [
-      ...atuais,
-      {
-        id: Date.now(),
-        nome: nome.trim(),
-        categoria,
-        objetivo: valorObjetivo,
-        acumulado: valorAcumulado,
-        prazo: new Date(`${prazo}-02T12:00:00`).toLocaleDateString("pt-BR", {
-          month: "short",
-          year: "numeric",
-        }),
-        cor: "navy",
-        icone,
-      },
-    ]);
-
-    setNome("");
-    setObjetivo("");
-    setAcumulado("0");
-    setPrazo("");
-    setCategoria("Outros");
-    setIcone("reserva");
-    setModalAberto(false);
+    criar.mutate({
+      nome: nome.trim(),
+      valorObjetivo,
+      valorAcumulado,
+      dataDesejada: ultimoDiaDoMes(prazo),
+    });
   }
 
-  function excluirMeta(id: number) {
-    setMetas((atuais) => atuais.filter((meta) => meta.id !== id));
+  function excluirMeta(_id: number) {
+    window.alert("A exclusão de metas será liberada em breve.");
     setMenuAberto(null);
-    setMetaSelecionada(null);
   }
 
   return (
@@ -687,4 +670,3 @@ export default function Goals() {
     </AppLayout>
   );
 }
-

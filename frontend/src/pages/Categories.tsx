@@ -1,4 +1,6 @@
+
 import { useMemo, useState, type FormEvent } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Plus,
   Tag,
@@ -21,6 +23,11 @@ import {
 } from "lucide-react";
 import { AppLayout } from "../layouts/AppLayout";
 
+// ALTERAÇÃO: importamos os serviços para buscar os dados reais da API.
+import { getCategorias } from "@/services/transacoes";
+import { getGastosPorCategoria } from "@/services/financeiro";
+import { getTransacoes } from "@/services/transacoes";
+
 type Category = {
   id: number;
   name: string;
@@ -30,19 +37,22 @@ type Category = {
   type: "Despesa" | "Receita";
 };
 
-const initialCategories: Category[] = [
-  { id: 1, name: "Alimentação", transactions: 18, amount: 1210.4, color: "#970b2e", type: "Despesa" },
-  { id: 2, name: "Moradia", transactions: 5, amount: 1820, color: "#19435d", type: "Despesa" },
-  { id: 3, name: "Transporte", transactions: 9, amount: 780.25, color: "#e9ad00", type: "Despesa" },
-  { id: 4, name: "Saúde", transactions: 3, amount: 340, color: "#30885c", type: "Despesa" },
-  { id: 5, name: "Educação", transactions: 2, amount: 290, color: "#19435d", type: "Despesa" },
-  { id: 6, name: "Lazer", transactions: 7, amount: 520.8, color: "#970b2e", type: "Despesa" },
-  { id: 7, name: "Compras", transactions: 4, amount: 410, color: "#e9ad00", type: "Despesa" },
-  { id: 8, name: "Investimentos", transactions: 3, amount: 850, color: "#19435d", type: "Receita" },
-  { id: 9, name: "Assinaturas", transactions: 6, amount: 186.9, color: "#333333", type: "Despesa" },
-  { id: 10, name: "Impostos", transactions: 2, amount: 630, color: "#970b2e", type: "Despesa" },
-  { id: 11, name: "Contas e Serviços", transactions: 8, amount: 760, color: "#30885c", type: "Despesa" },
-  { id: 12, name: "Outros", transactions: 3, amount: 150, color: "#333333", type: "Despesa" },
+// ALTERAÇÃO: os dados abaixo deixaram de ser a lista exibida na tela.
+// Agora servem somente como referência visual para manter as cores e os tipos
+// associados aos nomes das categorias.
+const categoriasBase: Category[] = [
+  { id: 1, name: "Alimentação", transactions: 0, amount: 0, color: "#970b2e", type: "Despesa" },
+  { id: 2, name: "Moradia", transactions: 0, amount: 0, color: "#19435d", type: "Despesa" },
+  { id: 3, name: "Transporte", transactions: 0, amount: 0, color: "#e9ad00", type: "Despesa" },
+  { id: 4, name: "Saúde", transactions: 0, amount: 0, color: "#30885c", type: "Despesa" },
+  { id: 5, name: "Educação", transactions: 0, amount: 0, color: "#19435d", type: "Despesa" },
+  { id: 6, name: "Lazer", transactions: 0, amount: 0, color: "#970b2e", type: "Despesa" },
+  { id: 7, name: "Compras", transactions: 0, amount: 0, color: "#e9ad00", type: "Despesa" },
+  { id: 8, name: "Investimentos", transactions: 0, amount: 0, color: "#19435d", type: "Receita" },
+  { id: 9, name: "Assinaturas", transactions: 0, amount: 0, color: "#333333", type: "Despesa" },
+  { id: 10, name: "Impostos", transactions: 0, amount: 0, color: "#970b2e", type: "Despesa" },
+  { id: 11, name: "Contas e Serviços", transactions: 0, amount: 0, color: "#30885c", type: "Despesa" },
+  { id: 12, name: "Outros", transactions: 0, amount: 0, color: "#333333", type: "Despesa" },
 ];
 
 const colorOptions = [
@@ -79,7 +89,79 @@ const currency = (value: number) =>
   });
 
 export default function Categories() {
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  // ALTERAÇÃO: buscamos separadamente as categorias, os gastos agrupados
+  // por categoria e as transações do usuário.
+  const categoriasQ = useQuery({
+    queryKey: ["categorias"],
+    queryFn: getCategorias,
+  });
+
+  const gastosQ = useQuery({
+    queryKey: ["gastos-categoria"],
+    queryFn: getGastosPorCategoria,
+  });
+
+  const transacoesQ = useQuery({
+    queryKey: ["transacoes"],
+    queryFn: getTransacoes,
+  });
+
+  // ALTERAÇÃO: reunimos os erros das três consultas para exibir um aviso
+  // caso algum dos dados necessários não consiga ser carregado.
+  const erro = categoriasQ.error || gastosQ.error || transacoesQ.error;
+
+  // ALTERAÇÃO: transformamos os dados da API no formato usado pelos cards.
+  // Os valores de gastos vêm do relatório por categoria e a quantidade
+  // de transações é calculada a partir das transações retornadas pela API.
+  const base: Category[] = useMemo(() => {
+    const gastosMap = new Map(
+      (gastosQ.data ?? []).map((g) => [g.rotulo, g.valor])
+    );
+
+    const contagemMap = new Map<number, number>();
+
+    (transacoesQ.data ?? []).forEach((transacao) => {
+      if (transacao.categoriaId != null) {
+        contagemMap.set(
+          transacao.categoriaId,
+          (contagemMap.get(transacao.categoriaId) ?? 0) + 1
+        );
+      }
+    });
+
+    return (categoriasQ.data ?? []).map((categoria, index) => {
+      const referencia = categoriasBase.find(
+        (item) =>
+          item.name.toLowerCase() === categoria.nome.toLowerCase()
+      );
+
+      return {
+        id: categoria.id,
+        name: categoria.nome,
+        transactions: contagemMap.get(categoria.id) ?? 0,
+        amount: gastosMap.get(categoria.nome) ?? 0,
+        color: referencia?.color ?? colorOptions[index % colorOptions.length],
+        type: referencia?.type ?? "Despesa",
+      };
+    });
+  }, [categoriasQ.data, gastosQ.data, transacoesQ.data]);
+
+  // ALTERAÇÃO: guardamos as modificações locais separadamente dos dados da API.
+  // A propriedade "source" identifica a versão da lista recebida do backend.
+  // Isso evita precisar de useEffect com setState e elimina o aviso
+  // react(set-state-in-effect).
+  const [localCategories, setLocalCategories] = useState<{
+    source: Category[];
+    value: Category[];
+  } | null>(null);
+
+  // ALTERAÇÃO: se a referência dos dados da API mudar, usamos a lista nova.
+  // Enquanto ela não mudar, preservamos as criações, edições e exclusões locais.
+  const categories =
+    localCategories?.source === base
+      ? localCategories.value
+      : base;
+
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("Todas");
   const [modalOpen, setModalOpen] = useState(false);
@@ -144,25 +226,33 @@ export default function Categories() {
     }
 
     if (editingId !== null) {
-      setCategories((current) =>
-        current.map((category) =>
+      // ALTERAÇÃO: a edição agora atualiza o estado local associado à versão
+      // atual dos dados da API, sem alterar diretamente os dados recebidos.
+      setLocalCategories({
+        source: base,
+        value: categories.map((category) =>
           category.id === editingId
             ? { ...category, name: cleanName, type, color }
             : category
-        )
-      );
+        ),
+      });
     } else {
-      setCategories((current) => [
-        ...current,
-        {
-          id: Date.now(),
-          name: cleanName,
-          transactions: 0,
-          amount: 0,
-          color,
-          type,
-        },
-      ]);
+      // ALTERAÇÃO: novas categorias continuam aparecendo na tela localmente.
+      // Elas não são persistidas no backend nesta etapa da integração.
+      setLocalCategories({
+        source: base,
+        value: [
+          ...categories,
+          {
+            id: Date.now(),
+            name: cleanName,
+            transactions: 0,
+            amount: 0,
+            color,
+            type,
+          },
+        ],
+      });
     }
 
     setModalOpen(false);
@@ -175,9 +265,13 @@ export default function Categories() {
 
     if (!confirmed) return;
 
-    setCategories((current) =>
-      current.filter((item) => item.id !== category.id)
-    );
+    // ALTERAÇÃO: a exclusão também é mantida somente no estado local.
+    // Assim preservamos o comportamento visual enquanto não há integração
+    // com um endpoint de exclusão de categorias.
+    setLocalCategories({
+      source: base,
+      value: categories.filter((item) => item.id !== category.id),
+    });
   }
 
   return (
@@ -232,6 +326,17 @@ export default function Categories() {
             <option value="Receita">Receitas</option>
           </select>
         </div>
+
+        {/* ALTERAÇÃO: aviso de erro das consultas exibido antes da lista. */}
+        {erro && (
+          <div
+            role="alert"
+            className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          >
+            Não foi possível carregar os dados das categorias. Verifique sua
+            conexão com o servidor e tente novamente.
+          </div>
+        )}
 
         {/* Grade de categorias */}
         {filteredCategories.length > 0 ? (

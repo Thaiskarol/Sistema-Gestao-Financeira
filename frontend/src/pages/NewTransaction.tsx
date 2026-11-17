@@ -1,13 +1,20 @@
 
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { Check, CalendarDays } from "lucide-react";
 import { AppLayout } from "../layouts/AppLayout";
+import { criarTransacao, getCategorias } from "@/services/transacoes";
 
 type TransactionType = "Despesa" | "Receita";
 
 export default function NewTransaction() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [type, setType] = useState<TransactionType>("Despesa");
   const [description, setDescription] = useState("");
@@ -18,8 +25,26 @@ export default function NewTransaction() {
   const [category, setCategory] = useState("Alimentação");
   const [establishment, setEstablishment] = useState("");
   const [recurrence, setRecurrence] = useState("Não se repete");
-  const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
+
+  const categoriasQ = useQuery({
+    queryKey: ["categorias"],
+    queryFn: getCategorias,
+  });
+
+  const criar = useMutation({
+    mutationFn: criarTransacao,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transacoes"] });
+      queryClient.invalidateQueries({ queryKey: ["resumo"] });
+      queryClient.invalidateQueries({ queryKey: ["evolucao-receitas"] });
+      queryClient.invalidateQueries({ queryKey: ["evolucao-despesas"] });
+      queryClient.invalidateQueries({ queryKey: ["gastos-categoria"] });
+
+      navigate("/transacoes");
+    },
+    onError: (e) => setError((e as Error).message),
+  });
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -27,40 +52,33 @@ export default function NewTransaction() {
     const amount = Number(value.replace(",", "."));
 
     if (!description.trim() || !value || !date || amount <= 0) {
-      setError("Preencha a descrição, o valor e a data com informações válidas.");
+      setError(
+        "Preencha a descrição, o valor e a data com informações válidas."
+      );
       return;
     }
 
-    const savedTransaction = {
-      id: crypto.randomUUID(),
-      type,
-      description: description.trim(),
-      value: amount,
-      date,
-      category,
-      establishment: establishment.trim(),
-      recurrence,
-      notes: notes.trim(),
-      createdAt: new Date().toISOString(),
-    };
+    const categoriaId = categoriasQ.data?.find(
+      (c) => c.nome === category
+    )?.id;
 
-    try {
-      const stored = localStorage.getItem("finance-transactions");
-      const transactions = stored ? JSON.parse(stored) : [];
-
-      if (!Array.isArray(transactions)) {
-        throw new Error("Formato de dados inválido.");
-      }
-
-      localStorage.setItem(
-        "finance-transactions",
-        JSON.stringify([...transactions, savedTransaction])
-      );
-
-      navigate("/transacoes");
-    } catch {
-      setError("Não foi possível salvar a transação. Tente novamente.");
+    if (!categoriaId) {
+      setError("Escolha uma categoria.");
+      return;
     }
+
+    setError("");
+
+    criar.mutate({
+      descricao: description.trim(),
+      estabelecimento: establishment.trim() || null,
+      valor: amount,
+      dataTransacao: date,
+      recorrencia:
+        recurrence === "Não se repete" ? null : recurrence,
+      tipo: type === "Despesa" ? "DESPESA" : "RECEITA",
+      categoriaId,
+    });
   }
 
   const inputClass =
@@ -95,7 +113,13 @@ export default function NewTransaction() {
               <button
                 key={item}
                 type="button"
-                onClick={() => setType(item)}
+                onClick={() => {
+                  setType(item);
+
+                  if (item === "Receita") {
+                    setCategory("Outros");
+                  }
+                }}
                 aria-pressed={type === item}
                 className={`min-h-10 rounded-lg px-3 text-sm font-semibold transition ${
                   type === item
@@ -157,17 +181,13 @@ export default function NewTransaction() {
                 className={inputClass}
                 value={category}
                 onChange={(event) => setCategory(event.target.value)}
+                disabled={type === "Receita"}
               >
-                <option>Alimentação</option>
-                <option>Moradia</option>
-                <option>Transporte</option>
-                <option>Lazer</option>
-                <option>Saúde</option>
-                <option>Educação</option>
-                <option>Assinaturas</option>
-                <option>Salário</option>
-                <option>Investimentos</option>
-                <option>Outros</option>
+                {(categoriasQ.data ?? []).map((c) => (
+                  <option key={c.id} value={c.nome}>
+                    {c.nome}
+                  </option>
+                ))}
               </select>
             </label>
 
@@ -176,7 +196,9 @@ export default function NewTransaction() {
               <input
                 className={inputClass}
                 value={establishment}
-                onChange={(event) => setEstablishment(event.target.value)}
+                onChange={(event) =>
+                  setEstablishment(event.target.value)
+                }
                 placeholder="Opcional"
               />
             </label>
@@ -186,7 +208,9 @@ export default function NewTransaction() {
               <select
                 className={inputClass}
                 value={recurrence}
-                onChange={(event) => setRecurrence(event.target.value)}
+                onChange={(event) =>
+                  setRecurrence(event.target.value)
+                }
               >
                 <option>Não se repete</option>
                 <option>Diária</option>
@@ -194,17 +218,6 @@ export default function NewTransaction() {
                 <option>Mensal</option>
                 <option>Anual</option>
               </select>
-            </label>
-
-            <label className={`${labelClass} md:col-span-2`}>
-              Observações
-              <textarea
-                className={`${inputClass} min-h-24 resize-y`}
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                placeholder="Adicione uma observação (opcional)"
-                rows={3}
-              />
             </label>
           </div>
 
@@ -228,10 +241,11 @@ export default function NewTransaction() {
 
             <button
               type="submit"
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#bd0c36] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#a20b2e] sm:min-w-[180px]"
+              disabled={criar.isPending}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#bd0c36] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#a20b2e] disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[180px]"
             >
               <Check size={17} />
-              Salvar transação
+              {criar.isPending ? "Salvando..." : "Salvar transação"}
             </button>
           </div>
         </form>

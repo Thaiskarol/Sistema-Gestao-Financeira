@@ -1,4 +1,7 @@
+
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getClassificacao, getScore } from "@/services/saude";
 import {
   HeartPulse,
   TrendingUp,
@@ -31,39 +34,6 @@ const historicoScore = [
   { mes: "Jun", score: 100 },
 ];
 
-const indicadores = [
-  {
-    titulo: "Percentual de economia",
-    descricao: "Excelente",
-    valor: 92,
-    cor: "#32885e",
-  },
-  {
-    titulo: "Frequência de estouro",
-    descricao: "Muito bom",
-    valor: 87,
-    cor: "#32885e",
-  },
-  {
-    titulo: "Evolução patrimonial",
-    descricao: "Bom",
-    valor: 78,
-    cor: "#32885e",
-  },
-  {
-    titulo: "Consistência de investimentos",
-    descricao: "Pode melhorar",
-    valor: 71,
-    cor: "#e5a900",
-  },
-  {
-    titulo: "Controle de gastos",
-    descricao: "Muito bom",
-    valor: 84,
-    cor: "#32885e",
-  },
-];
-
 const recomendacoes = [
   {
     titulo: "Complete sua reserva",
@@ -87,7 +57,8 @@ const recomendacoes = [
 
 function ScoreCircular({ score }: { score: number }) {
   const circunferencia = 2 * Math.PI * 48;
-  const progresso = (Math.min(Math.max(score, 0), 100) / 100) * circunferencia;
+  const progresso =
+    (Math.min(Math.max(score, 0), 100) / 100) * circunferencia;
 
   return (
     <div className="relative mx-auto flex size-36 items-center justify-center">
@@ -128,20 +99,69 @@ function ScoreCircular({ score }: { score: number }) {
 }
 
 export default function FinancialHealth() {
-  const score = 82;
+  const scoreQ = useQuery({
+    queryKey: ["score"],
+    queryFn: getScore,
+  });
+
+  const classQ = useQuery({
+    queryKey: ["score-classificacao"],
+    queryFn: getClassificacao,
+  });
+
+  const score = scoreQ.data?.score ?? 0;
+  const semDados = scoreQ.data ? !scoreQ.data.dadosSuficientes : false;
+  const erro = (scoreQ.error ?? classQ.error) as Error | null;
 
   const classificacao = useMemo(() => {
-    if (score >= 90) return "Excelente";
-    if (score >= 75) return "Muito boa";
-    if (score >= 60) return "Boa";
-    if (score >= 40) return "Regular";
-    return "Precisa melhorar";
-  }, [score]);
+    switch (classQ.data?.nivel) {
+      case "EXCELENTE":
+        return "Excelente";
+      case "BOM":
+        return "Boa";
+      case "ATENCAO":
+        return "Em atenção";
+      case "CRITICO":
+        return "Crítica";
+      default:
+        return "—";
+    }
+  }, [classQ.data]);
+
+  // Cada critério vale até 20 pontos; a tela mostra de 0 a 100
+  const indicadores = useMemo(
+    () =>
+      (scoreQ.data?.criterios ?? []).map((c) => {
+        const valor = Math.round((c.pontos / 20) * 100);
+
+        return {
+          titulo: c.nome,
+          descricao: !c.dadosSuficientes
+            ? "Sem dados"
+            : valor >= 85
+              ? "Excelente"
+              : valor >= 70
+                ? "Muito bom"
+                : valor >= 50
+                  ? "Bom"
+                  : "Pode melhorar",
+          valor,
+          cor: !c.dadosSuficientes
+            ? "#aeb8c2"
+            : valor >= 70
+              ? "#32885e"
+              : valor >= 40
+                ? "#e5a900"
+                : "#a30f35",
+        };
+      }),
+    [scoreQ.data],
+  );
 
   return (
     <AppLayout>
       <main className="w-full min-w-0 bg-[#f5f5f5]">
-         <div className="w-full min-w-0 pb-8 pt-1">
+        <div className="w-full min-w-0 pb-8 pt-1">
           {/* Cabeçalho */}
           <header className="mb-7">
             <p className="text-[10px] font-bold uppercase tracking-[0.17em] text-[#8c092e]">
@@ -154,6 +174,21 @@ export default function FinancialHealth() {
               Um retrato completo dos seus hábitos e decisões.
             </p>
           </header>
+
+          {erro && (
+            <p
+              role="alert"
+              className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-[#a30f35]"
+            >
+              {erro.message}
+            </p>
+          )}
+
+          {semDados && (
+            <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-[#8a6200]">
+              {scoreQ.data?.mensagem}
+            </p>
+          )}
 
           {/* Score e indicadores */}
           <section className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(260px,0.9fr)_minmax(0,1.8fr)]">

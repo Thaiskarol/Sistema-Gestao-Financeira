@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
   ChevronLeft,
@@ -13,6 +14,12 @@ import {
   Save,
 } from "lucide-react";
 import { AppLayout } from "../layouts/AppLayout";
+import {
+  atualizarTransacao,
+  excluirTransacao,
+  getCategorias,
+  getTransacoes,
+} from "@/services/transacoes";
 
 type Transaction = {
   id: number;
@@ -20,106 +27,9 @@ type Transaction = {
   category: string;
   date: string;
   amount: number;
+  recorrencia?: string | null;
+  categoriaId?: number;
 };
-
-const initialTransactions: Transaction[] = [
-  {
-    id: 1,
-    description: "Supermercado Verde",
-    category: "Alimentação",
-    date: "2025-06-30T09:42:00",
-    amount: -284.6,
-  },
-  {
-    id: 2,
-    description: "Salário mensal",
-    category: "Renda",
-    date: "2025-06-05T08:15:00",
-    amount: 7850,
-  },
-  {
-    id: 3,
-    description: "Netflix",
-    category: "Assinaturas",
-    date: "2025-06-04T20:00:00",
-    amount: -39.9,
-  },
-  {
-    id: 4,
-    description: "Posto Avenida",
-    category: "Transporte",
-    date: "2025-06-03T18:22:00",
-    amount: -220,
-  },
-  {
-    id: 5,
-    description: "Rendimento CDB",
-    category: "Investimentos",
-    date: "2025-06-01T10:10:00",
-    amount: 126.42,
-  },
-  {
-    id: 6,
-    description: "Farmácia Boa Saúde",
-    category: "Saúde",
-    date: "2025-06-28T11:30:00",
-    amount: -78.5,
-  },
-  {
-    id: 7,
-    description: "Conta de energia",
-    category: "Moradia",
-    date: "2025-06-26T14:20:00",
-    amount: -156.3,
-  },
-  {
-    id: 8,
-    description: "Restaurante Sabor",
-    category: "Alimentação",
-    date: "2025-06-24T12:45:00",
-    amount: -86.9,
-  },
-  {
-    id: 9,
-    description: "Projeto freelance",
-    category: "Renda",
-    date: "2025-06-20T16:10:00",
-    amount: 950,
-  },
-  {
-    id: 10,
-    description: "Internet fibra",
-    category: "Moradia",
-    date: "2025-06-18T09:00:00",
-    amount: -109.9,
-  },
-  {
-    id: 11,
-    description: "Academia",
-    category: "Saúde",
-    date: "2025-06-12T07:30:00",
-    amount: -89.9,
-  },
-  {
-    id: 12,
-    description: "Música Premium",
-    category: "Assinaturas",
-    date: "2025-06-10T19:15:00",
-    amount: -21.9,
-  },
-];
-
-const categories = [
-  "Alimentação",
-  "Assinaturas",
-  "Transporte",
-  "Renda",
-  "Investimentos",
-  "Saúde",
-  "Moradia",
-  "Lazer",
-  "Outros",
-];
 
 const currency = (amount: number) =>
   amount.toLocaleString("pt-BR", {
@@ -148,16 +58,63 @@ const formatDate = (date: string) => {
 };
 
 export default function Transactions() {
-  const [transactions, setTransactions] =
-    useState<Transaction[]>(initialTransactions);
+  const queryClient = useQueryClient();
+  const transacoesQ = useQuery({
+    queryKey: ["transacoes"],
+    queryFn: getTransacoes,
+  });
+  const categoriasQ = useQuery({
+    queryKey: ["categorias"],
+    queryFn: getCategorias,
+  });
+
+  const transactions: Transaction[] = useMemo(() => {
+    const nomes = new Map(
+      (categoriasQ.data ?? []).map((c) => [c.id, c.nome])
+    );
+
+    return (transacoesQ.data ?? []).map((t) => ({
+      id: t.id,
+      description: t.descricao,
+      category: nomes.get(t.categoriaId) ?? "Outros",
+      date: t.dataTransacao,
+      amount: t.tipo === "DESPESA" ? -t.valor : t.valor,
+      recorrencia: t.recorrencia,
+      categoriaId: t.categoriaId,
+    }));
+  }, [transacoesQ.data, categoriasQ.data]);
+
+  const editar = useMutation({
+    mutationFn: (p: {
+      id: number;
+      descricao: string;
+      recorrencia: string | null;
+      categoriaId: number;
+    }) =>
+      atualizarTransacao(p.id, {
+        descricao: p.descricao,
+        recorrencia: p.recorrencia,
+        categoriaId: p.categoriaId,
+      }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["transacoes"] }),
+    onError: (e) => window.alert((e as Error).message),
+  });
+
+  const excluir = useMutation({
+    mutationFn: (id: number) => excluirTransacao(id),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["transacoes"] }),
+    onError: (e) => window.alert((e as Error).message),
+  });
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("Todos os tipos");
   const [categoryFilter, setCategoryFilter] =
     useState("Todas as categorias");
 
-  const [startDate, setStartDate] = useState("2025-06-01");
-  const [endDate, setEndDate] = useState("2025-06-30");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [page, setPage] = useState(1);
 
   const [selected, setSelected] = useState<Transaction | null>(null);
@@ -210,8 +167,8 @@ export default function Transactions() {
     setSearch("");
     setTypeFilter("Todos os tipos");
     setCategoryFilter("Todas as categorias");
-    setStartDate("2025-06-01");
-    setEndDate("2025-06-30");
+    setStartDate("");
+    setEndDate("");
     setPage(1);
   }
 
@@ -232,20 +189,26 @@ export default function Transactions() {
 
     if (!selected || !editDescription.trim()) return;
 
-    setTransactions((current) =>
-      current.map((transaction) =>
-        transaction.id === selected.id
-          ? {
-              ...transaction,
-              description: editDescription.trim(),
-              category: editCategory,
-            }
-          : transaction
-      )
-    );
+    const categoriaId =
+      categoriasQ.data?.find((c) => c.nome === editCategory)?.id ??
+      selected.categoriaId;
 
-    setSelected(null);
-    setModalMode(null);
+    if (!categoriaId) return;
+
+    editar.mutate(
+      {
+        id: selected.id,
+        descricao: editDescription.trim(),
+        recorrencia: selected.recorrencia ?? null,
+        categoriaId,
+      },
+      {
+        onSuccess: () => {
+          setSelected(null);
+          setModalMode(null);
+        },
+      }
+    );
   }
 
   function deleteTransaction(transaction: Transaction) {
@@ -255,10 +218,7 @@ export default function Transactions() {
 
     if (!confirmed) return;
 
-    setTransactions((current) =>
-      current.filter((item) => item.id !== transaction.id)
-    );
-
+    excluir.mutate(transaction.id);
     setPage(1);
   }
 
@@ -305,8 +265,10 @@ export default function Transactions() {
             className="h-10 min-w-[165px] flex-1 rounded-xl border border-[#dedede] bg-white px-3 text-sm text-[#666] outline-none focus:border-[#bd0c36]"
           >
             <option>Todas as categorias</option>
-            {categories.map((category) => (
-              <option key={category}>{category}</option>
+            {(categoriasQ.data ?? []).map((category) => (
+              <option key={category.id} value={category.nome}>
+                {category.nome}
+              </option>
             ))}
           </select>
 
@@ -647,9 +609,9 @@ export default function Transactions() {
                     onChange={(event) => setEditCategory(event.target.value)}
                     className="w-full rounded-xl border border-[#dedede] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#bd0c36]"
                   >
-                    {categories.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
+                    {(categoriasQ.data ?? []).map((category) => (
+                      <option key={category.id} value={category.nome}>
+                        {category.nome}
                       </option>
                     ))}
                   </select>
