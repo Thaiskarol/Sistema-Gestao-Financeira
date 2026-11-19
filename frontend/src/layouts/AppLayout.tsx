@@ -1,5 +1,6 @@
 
 import { useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
   Check,
@@ -21,6 +22,7 @@ import {
   Settings,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { getUsuario, logout } from "@/lib/session";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -117,6 +119,15 @@ export function AppLayout({
 
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const usuario = getUsuario();
+  const nomeExibido = usuario?.nome ?? "Usuário";
+  const iniciais = nomeExibido
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((parte) => parte[0]!.toUpperCase())
+    .join("");
 
   const currentPage =
     navigation.find((item) => item.path === location.pathname)?.label ??
@@ -134,6 +145,8 @@ export function AppLayout({
 
   function handleLogout() {
     closeMenus();
+    logout();
+    queryClient.clear();
     navigate("/");
   }
 
@@ -250,12 +263,12 @@ export function AppLayout({
             }
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700">
-             AM
+              {iniciais}
             </div>
 
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-slate-800">
-                Ana Martins
+                {nomeExibido}
               </p>
               <p className="text-xs text-slate-400">Minha conta</p>
             </div>
@@ -450,9 +463,10 @@ export function AppLayout({
                   setNotificationsOpen(false);
                 }}
                 aria-expanded={profileOpen}
-                className="flex items-center gap-2 rounded-xl p-1.5 transition-colors hover:bg-slate-100"              >
+                className="flex items-center gap-2 rounded-xl p-1.5 transition-colors hover:bg-slate-100"
+              >
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-[11px] font-semibold text-white">
-                 AM
+                  {iniciais}
                 </span>
 
                 <ChevronDown

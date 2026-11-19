@@ -15,6 +15,8 @@ export type Transacao = {
   tipo: TipoTransacao;
   categoriaId: number;
   usuarioId: number;
+  estabelecimento: string | null;
+  categoriaNome: string;
 };
 
 export type ResumoFinanceiro = {

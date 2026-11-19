@@ -1,7 +1,7 @@
-
 import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
+import { RequireAuth } from "@/components/RequireAuth";
 
 // Carregamento sob demanda das páginas
 const Login = lazy(() => import("./pages/Login"));
@@ -25,10 +25,7 @@ function App() {
   useEffect(() => {
     const savedTheme = localStorage.getItem("financialTheme");
 
-    document.documentElement.classList.toggle(
-      "dark",
-      savedTheme === "dark",
-    );
+    document.documentElement.classList.toggle("dark", savedTheme === "dark");
   }, []);
 
   return (
@@ -41,32 +38,37 @@ function App() {
         }
       >
         <Routes>
+          {/* Rotas públicas */}
           <Route path="/" element={<Login />} />
           <Route path="/cadastro" element={<Register />} />
           <Route path="/esqueci-senha" element={<ForgotPassword />} />
 
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/transacoes" element={<Transactions />} />
-          <Route path="/categorias" element={<Categories />} />
-          <Route path="/orcamento" element={<Budget />} />
-          <Route path="/relatorios" element={<Reports />} />
-          <Route path="/insights" element={<Insights />} />
-          <Route path="/renda" element={<Income />} />
-          <Route path="/investimentos" element={<Investments />} />
-          <Route path="/metas" element={<Goals />} />
-          <Route path="/saude-financeira" element={<FinancialHealth />} />
-          <Route path="/nova-transacao" element={<NewTransaction />} />
-          <Route path="/perfil" element={<Profile />} />
+          {/* Rotas protegidas: exigem usuário autenticado */}
+          <Route element={<RequireAuth />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/transacoes" element={<Transactions />} />
+            <Route path="/categorias" element={<Categories />} />
+            <Route path="/orcamento" element={<Budget />} />
+            <Route path="/relatorios" element={<Reports />} />
+            <Route path="/insights" element={<Insights />} />
+            <Route path="/renda" element={<Income />} />
+            <Route path="/investimentos" element={<Investments />} />
+            <Route path="/metas" element={<Goals />} />
+            <Route path="/saude-financeira" element={<FinancialHealth />} />
+            <Route path="/nova-transacao" element={<NewTransaction />} />
+            <Route path="/perfil" element={<Profile />} />
 
-          <Route
-            path="/integracao-bancaria"
-            element={
-              <AppLayout subtitle="Visão financeira pessoal">
-                <BankingIntegration />
-              </AppLayout>
-            }
-          />
+            <Route
+              path="/integracao-bancaria"
+              element={
+                <AppLayout subtitle="Visão financeira pessoal">
+                  <BankingIntegration />
+                </AppLayout>
+              }
+            />
+          </Route>
 
+          {/* Qualquer rota desconhecida volta ao login */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

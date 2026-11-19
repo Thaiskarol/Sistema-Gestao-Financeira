@@ -1,4 +1,3 @@
-
 import axios from "axios";
 
 export type ApiResponse<T> = {
@@ -39,11 +38,14 @@ function toApiError(error: unknown): ApiError {
       | { message?: string; errors?: ApiFieldError[] }
       | undefined;
 
-    return new ApiError(
-      body?.message ?? "Não foi possível conectar ao servidor.",
-      error.response?.status,
-      body?.errors ?? [],
-    );
+    const fieldErrors = body?.errors ?? [];
+    const base = body?.message ?? "Não foi possível conectar ao servidor.";
+
+    const mensagem = fieldErrors.length
+      ? `${base} ${fieldErrors.map((f) => f.message).join(" ")}`
+      : base;
+
+    return new ApiError(mensagem, error.response?.status, fieldErrors);
   }
 
   return new ApiError("Erro inesperado.");
@@ -51,10 +53,7 @@ function toApiError(error: unknown): ApiError {
 
 type Params = Record<string, string | number | boolean | undefined>;
 
-export async function apiGet<T>(
-  url: string,
-  params?: Params,
-): Promise<T> {
+export async function apiGet<T>(url: string, params?: Params): Promise<T> {
   try {
     const { data } = await http.get<ApiResponse<T>>(url, { params });
     return data.data;
