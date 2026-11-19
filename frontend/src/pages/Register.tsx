@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+
+import { Link, useNavigate } from "react-router-dom";
 import { useState, type FormEvent } from "react";
 import {
   ArrowRight,
@@ -12,6 +13,7 @@ import {
   CalendarDays,
   Fingerprint,
 } from "lucide-react";
+import { apiPost } from "@/lib/api";
 
 // Aplica a máscara do CPF enquanto o usuário digita
 function formatCPF(value: string) {
@@ -73,8 +75,10 @@ export function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"error" | "success">("error");
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
 
@@ -114,10 +118,27 @@ export function Register() {
       return;
     }
 
-    setMessage(
-      "Validação concluída! O cadastro será habilitado quando conectarmos o backend.",
-    );
-    setMessageType("success");
+    setLoading(true);
+
+    try {
+      await apiPost("/usuarios", {
+        nome: name.trim(),
+        cpf: cpf.replace(/\D/g, ""),
+        dataNascimento: birthDate,
+        email: email.trim(),
+        senha: password,
+      });
+
+      setMessageType("success");
+      setMessage("Conta criada com sucesso! Redirecionando para o login...");
+
+      setTimeout(() => navigate("/"), 1500);
+    } catch (e) {
+      setMessageType("error");
+      setMessage((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -459,9 +480,10 @@ export function Register() {
             {/* Botão de cadastro */}
             <button
               type="submit"
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#C81035] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#AD0D2D] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C81035] active:scale-[0.99]"
+              disabled={loading}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#C81035] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#AD0D2D] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C81035] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Criar conta
+              {loading ? "Criando conta..." : "Criar conta"}
               <ArrowRight size={18} />
             </button>
           </form>

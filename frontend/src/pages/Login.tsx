@@ -9,6 +9,9 @@ import {
   Mail,
   ShieldCheck,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { apiPost } from "@/lib/api";
+import { saveUsuario, type UsuarioLogado } from "@/lib/session";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -17,16 +20,39 @@ export function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!email.trim() || !password.trim()) {
+    if (!email.trim() || !password) {
       setMessage("Preencha seu e-mail e sua senha.");
       return;
     }
 
-    navigate("/dashboard");
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const usuario = await apiPost<UsuarioLogado>("/auth/login", {
+        email: email.trim(),
+        senha: password,
+      });
+
+      saveUsuario({
+        id: usuario.id,
+        nome: usuario.nome,
+        email: usuario.email,
+      });
+
+      queryClient.clear(); // descarta dados de quem usou antes
+      navigate("/dashboard");
+    } catch (e) {
+      setMessage((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -180,7 +206,8 @@ export function Login() {
                     setMessage("");
                   }}
                   required
-                  className="password-input-hide-native h-11 w-full rounded-xl border border-gray-300 bg-white pl-11 pr-12 text-base text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#C81035] focus:ring-2 focus:ring-[#C81035]/15"        />
+                  className="password-input-hide-native h-11 w-full rounded-xl border border-gray-300 bg-white pl-11 pr-12 text-base text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#C81035] focus:ring-2 focus:ring-[#C81035]/15"
+                />
 
                 <button
                   type="button"
@@ -225,12 +252,13 @@ export function Login() {
             </div>
 
             <button
-              type="submit"
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#C81035] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#AD0D2D] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C81035] active:scale-[0.99]"
-            >
-              Entrar
-              <ArrowRight size={18} />
-            </button>
+  type="submit"
+  disabled={loading}
+  className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#C81035] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#AD0D2D] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C81035] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+>
+  {loading ? "Entrando..." : "Entrar"}
+  <ArrowRight size={18} />
+</button>
           </form>
 
           {/* Mensagem enquanto a API não está conectada */}

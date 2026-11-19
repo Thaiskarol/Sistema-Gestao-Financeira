@@ -1,4 +1,3 @@
-
 const KEY = "financialUser";
 
 export type UsuarioLogado = {
@@ -19,13 +18,11 @@ export function getUsuario(): UsuarioLogado | null {
 export function getUsuarioId(): number {
   const usuario = getUsuario();
 
-  if (usuario) return usuario.id;
+  if (!usuario) {
+    throw new Error("Usuário não logado.");
+  }
 
-  const teste = Number(import.meta.env.VITE_USUARIO_ID_TESTE);
-
-  if (teste) return teste; // temporário, até o login real ficar pronto
-
-  throw new Error("Usuário não logado.");
+  return usuario.id;
 }
 
 export function logout() {
