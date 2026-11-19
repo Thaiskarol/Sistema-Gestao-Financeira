@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.bradesco.dto.response.ComparativoMensalDTO;
 import com.bradesco.dto.response.ValorMensalDTO;
 import com.bradesco.enums.TipoTransacao;
+import com.bradesco.exception.ResourceNotFoundException;
 import com.bradesco.entity.Transacao;
 import com.bradesco.repository.TransacaoRepository;
 import com.bradesco.repository.UsuarioRepository;
@@ -179,8 +180,8 @@ class EvolucaoServiceTest {
 
         when(usuarioRepository.existsById(99L)).thenReturn(false);
 
-        RuntimeException exception = assertThrows(
-                RuntimeException.class,
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
                 () -> evolucaoService.evolucaoMensalDespesas(99L));
 
         assertEquals(

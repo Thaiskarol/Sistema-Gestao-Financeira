@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 
 import com.bradesco.repository.TransacaoRepository;
 import com.bradesco.repository.UsuarioRepository;
+import com.bradesco.exception.ResourceNotFoundException;
 
 import java.math.BigDecimal;
 import java.time.YearMonth;
@@ -125,7 +126,7 @@ public class EvolucaoService {
 
     private void validarUsuario(Long usuarioId) {
         if (!usuarioRepository.existsById(usuarioId)) {
-            throw new RuntimeException("Usuário não encontrado.");
+            throw new ResourceNotFoundException("Usuário não encontrado.");
         }
     }
 }
