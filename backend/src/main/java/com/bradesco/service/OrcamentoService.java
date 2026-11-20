@@ -33,8 +33,14 @@ public class OrcamentoService {
 
         Usuario usuario = validarUsuario(dados.usuarioId());
 
-        Categoria categoria = categoriaRepository.findById(dados.categoriaId())
+                Categoria categoria = categoriaRepository.findById(dados.categoriaId())
                 .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada."));
+
+        // Orçamento só pode usar categoria padrão ou do próprio usuário
+        if (categoria.getUsuario() != null
+                && !categoria.getUsuario().getId().equals(usuario.getId())) {
+            throw new ResourceNotFoundException("Categoria não encontrada.");
+        }
 
         Orcamento orcamento = new Orcamento();
         orcamento.setLimite(dados.limite());
