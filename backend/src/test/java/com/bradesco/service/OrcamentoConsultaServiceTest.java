@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 
@@ -197,5 +198,38 @@ class OrcamentoConsultaServiceTest {
                 () -> orcamentoConsultaService.excluir(99L, 1L));
 
         verify(orcamentoRepository, never()).delete(any());
+    }
+
+    @Test
+    void deveListarOrcamentosDoMesInformadoUsandoConsumoDaqueleMes() {
+        YearMonth mes = YearMonth.of(2026, 10);
+        when(usuarioRepository.existsById(1L)).thenReturn(true);
+        when(orcamentoRepository.findByUsuarioId(1L)).thenReturn(List.of(
+                orcamento(1L, usuario, alimentacao, "2000.00")));
+        when(consumoOrcamentoService.calcularConsumo(1L, mes)).thenReturn(new ConsumoOrcamentoDTO(
+                1L, 10L, "Alimentação", new BigDecimal("2000.00"), new BigDecimal("1900.00"),
+                new BigDecimal("95.00"), new BigDecimal("100.00")));
+        when(statusOrcamentoService.obterStatus(1L, mes)).thenReturn(new StatusOrcamentoDTO(
+                1L, 10L, "Alimentação", new BigDecimal("95.00"), "RISCO"));
+
+        List<OrcamentoDetalheDTO> resultado = orcamentoConsultaService.listar(1L, mes);
+
+        assertEquals(1, resultado.size());
+        assertEquals(new BigDecimal("1900.00"), resultado.get(0).valorConsumido());
+        assertEquals(new BigDecimal("95.00"), resultado.get(0).percentualUtilizado());
+        assertEquals("RISCO", resultado.get(0).status());
+
+        verify(consumoOrcamentoService).calcularConsumo(1L, mes);
+        verify(consumoOrcamentoService, never()).calcularConsumo(1L);
+    }
+
+    @Test
+    void deveLancarExcecaoAoListarPorMesQuandoUsuarioNaoExiste() {
+        when(usuarioRepository.existsById(99L)).thenReturn(false);
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> orcamentoConsultaService.listar(99L, YearMonth.of(2026, 10)));
+
+        verifyNoInteractions(orcamentoRepository, consumoOrcamentoService, statusOrcamentoService);
     }
 }

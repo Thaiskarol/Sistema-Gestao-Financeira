@@ -28,25 +28,27 @@ public class ConsumoOrcamentoService {
   this.orcamentoRepository = orcamentoRepository;
   this.transacaoRepository = transacaoRepository;
   }
-
   @Transactional(readOnly = true)
   public ConsumoOrcamentoDTO calcularConsumo(Long orcamentoId) {
+        return calcularConsumo(orcamentoId, YearMonth.now());
+  }
 
-    Orcamento orcamento = orcamentoRepository.findById(orcamentoId)
-          .orElseThrow(() -> new ResourceNotFoundException("Orçamento não encontrado."));
+  @Transactional(readOnly = true)
+  public ConsumoOrcamentoDTO calcularConsumo(Long orcamentoId, YearMonth mes){
+        Orcamento orcamento = orcamentoRepository.findById(orcamentoId)
+           .orElseThrow(() -> new ResourceNotFoundException("Orçamento não encontrado."));
 
-    Long usuarioId = orcamento.getUsuario().getId();
-    Long categoriaId = orcamento.getCategoria().getId();
-    YearMonth mesAtual = YearMonth.now();   // CA06 / RN004: só o mês corrente
+        Long usuarioId = orcamento.getUsuario().getId();
+        Long categoriaId = orcamento.getCategoria().getId();
 
-    BigDecimal valorConsumido = transacaoRepository
-          .findByUsuarioIdAndTipo(usuarioId, TipoTransacao.DESPESA).stream()
-          .filter(t -> t.getCategoria() != null
-                  && t.getCategoria().getId().equals(categoriaId))
-          .filter(t -> YearMonth.from(t.getDataTransacao()).equals(mesAtual))
-          .map(Transacao::getValor)
-          .reduce(BigDecimal.ZERO, BigDecimal::add)
-          .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal valorConsumido = transacaoRepository
+                .findByUsuarioIdAndTipo(usuarioId, TipoTransacao.DESPESA).stream()
+                .filter(t -> t.getCategoria() != null
+                        && t.getCategoria().getId().equals(categoriaId))
+                .filter(t -> YearMonth.from(t.getDataTransacao()).equals(mes))
+                .map(Transacao::getValor)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
 
         BigDecimal limite = orcamento.getLimite();
 
