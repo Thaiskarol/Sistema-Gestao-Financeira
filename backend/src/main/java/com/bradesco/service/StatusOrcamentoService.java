@@ -1,6 +1,7 @@
 package com.bradesco.service;
 
 import java.math.BigDecimal;
+import java.time.YearMonth;
 
 import org.springframework.stereotype.Service;
 
@@ -63,18 +64,19 @@ public class StatusOrcamentoService {
     }
 
     public StatusOrcamentoDTO obterStatus(Long orcamentoId) {
+        return montarStatus(consumoOrcamentoService.calcularConsumo(orcamentoId));
+    }
 
-        ConsumoOrcamentoDTO consumo =
-                consumoOrcamentoService.calcularConsumo(orcamentoId);
+    public StatusOrcamentoDTO obterStatus(Long orcamentoId, YearMonth mes) {
+        return montarStatus(consumoOrcamentoService.calcularConsumo(orcamentoId, mes));
+    }
 
-        String status = classificar(consumo.percentualUtilizado());
-
+    private StatusOrcamentoDTO montarStatus(ConsumoOrcamentoDTO consumo) {
         return new StatusOrcamentoDTO(
                 consumo.orcamentoId(),
                 consumo.categoriaId(),
                 consumo.categoriaNome(),
                 consumo.percentualUtilizado(),
-                status
-        );
+                classificar(consumo.percentualUtilizado()));
     }
 }

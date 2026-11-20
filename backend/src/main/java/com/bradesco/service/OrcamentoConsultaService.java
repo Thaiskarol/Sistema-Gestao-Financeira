@@ -12,6 +12,7 @@ import com.bradesco.repository.UsuarioRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.YearMonth;
 import java.util.Comparator;
 import java.util.List;
 
@@ -100,5 +101,28 @@ public class OrcamentoConsultaService {
         if (!usuarioRepository.existsById(usuarioId)) {
             throw new ResourceNotFoundException("Usuário não encontrado.");
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrcamentoDetalheDTO> listar(Long usuarioId, YearMonth mes) {
+        validarUsuario(usuarioId);
+        return orcamentoRepository.findByUsuarioId(usuarioId).stream()
+                .sorted(Comparator.comparing(Orcamento::getId,
+                        Comparator.nullsLast(Comparator.<Long>naturalOrder())))
+                .map(orcamento -> toDetalhe(orcamento, mes))
+                .toList();
+    }
+    private OrcamentoDetalheDTO toDetalhe(Orcamento orcamento, YearMonth mes) {
+        ConsumoOrcamentoDTO consumo = consumoOrcamentoService.calcularConsumo(orcamento.getId(), mes);
+        StatusOrcamentoDTO status = statusOrcamentoService.obterStatus(orcamento.getId(), mes);
+
+        return new OrcamentoDetalheDTO(
+                orcamento.getId(),
+                consumo.categoriaId(),
+                consumo.categoriaNome(),
+                consumo.limite(),
+                consumo.valorConsumido(),
+                consumo.percentualUtilizado(),
+                status.status());
     }
 }

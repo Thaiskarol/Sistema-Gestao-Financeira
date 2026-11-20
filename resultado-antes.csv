@@ -1,0 +1,8 @@
+﻿"Endpoint","Validas","MediaMs","MenorMs","MaiorMs"
+"GET /consulta/resumo","5","847.49","800.24","888.15"
+"GET /gastos/por-categoria","5","745.08","726.26","772.22"
+"GET /gastos/por-estabelecimento","5","743.36","718.40","771.26"
+"GET /gastos/por-periodo","5","745.46","716.47","777.07"
+"GET /evolucao/despesas","5","829.17","783.51","867.06"
+"GET /evolucao/receitas","5","808.38","754.17","846.28"
+"GET /evolucao/comparativo","5","833.22","789.55","864.43"

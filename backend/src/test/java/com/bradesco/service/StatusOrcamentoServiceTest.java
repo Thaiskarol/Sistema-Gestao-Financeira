@@ -2,9 +2,12 @@ package com.bradesco.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.YearMonth;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -119,4 +122,18 @@ class StatusOrcamentoServiceTest {
         assertEquals(new BigDecimal("120.00"),
                 resultado.percentualUtilizado());
     }
+
+    @Test
+    void deveUsarOConsumoDoMesInformadoAoObterStatus() {
+        YearMonth mes = YearMonth.of(2026, 10);
+        when(consumoOrcamentoService.calcularConsumo(1L, mes))
+                .thenReturn(criarConsumo("95.00"));
+
+        StatusOrcamentoDTO resultado = statusOrcamentoService.obterStatus(1L, mes);
+
+        assertEquals("RISCO", resultado.status());
+        assertEquals(new BigDecimal("95.00"), resultado.percentualUtilizado());
+        verify(consumoOrcamentoService).calcularConsumo(1L, mes);
+        verify(consumoOrcamentoService, never()).calcularConsumo(1L);
+}
 }

@@ -23,4 +23,6 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
     // Últimas transações do usuário (o limite vem no Pageable)
     List<Transacao> findByUsuarioIdOrderByDataTransacaoDesc(Long usuarioId, Pageable pageable);
 
+     boolean existsByCategoriaId(Long categoriaId);
+
 }

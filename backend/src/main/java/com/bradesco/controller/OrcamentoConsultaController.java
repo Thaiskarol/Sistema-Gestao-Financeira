@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.YearMonth;
 import java.util.List;
 
 @RestController
@@ -28,14 +29,20 @@ public class OrcamentoConsultaController {
         this.orcamentoConsultaService = orcamentoConsultaService;
     }
 
+    
     @GetMapping
     public ResponseEntity<ApiResponse<List<OrcamentoDetalheDTO>>> listar(
-            @RequestParam("usuarioId") Long usuarioId) {
+            @RequestParam("usuarioId") Long usuarioId,
+            @RequestParam(value = "mes", required = false) YearMonth mes) {
+
+        List<OrcamentoDetalheDTO> dados = mes == null
+                ? orcamentoConsultaService.listar(usuarioId)
+                : orcamentoConsultaService.listar(usuarioId, mes);
 
         return ResponseEntity.ok(new ApiResponse<>(
                 true,
                 "Orçamentos listados com sucesso.",
-                orcamentoConsultaService.listar(usuarioId)));
+                dados));
     }
 
     @PutMapping("/{id}")
