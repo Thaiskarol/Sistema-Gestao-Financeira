@@ -4,6 +4,7 @@ import com.bradesco.dto.response.CriterioScoreDTO;
 import com.bradesco.dto.response.ScoreSaudeFinanceiraDTO;
 import com.bradesco.exception.ResourceNotFoundException;
 import com.bradesco.service.ScoreSaudeFinanceiraService;
+import com.bradesco.service.ScoreHistoricoService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -24,6 +25,9 @@ class ScoreSaudeFinanceiraControllerTest {
 
     @MockitoBean
     private ScoreSaudeFinanceiraService scoreSaudeFinanceiraService;
+
+    @MockitoBean
+    private ScoreHistoricoService scoreHistoricoService;
 
     @Test
     void deveRetornar200ComOScore() throws Exception {
