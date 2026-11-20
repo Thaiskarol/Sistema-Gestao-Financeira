@@ -27,6 +27,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -154,8 +155,8 @@ class TransacaoServiceTest {
     @Test
     void deveLancarExcecaoAoClassificarQuandoCategoriaNaoExiste() {
         Transacao transacao = new Transacao();
+        transacao.setUsuario(new Usuario());
         when(transacaoRepository.findById(10L)).thenReturn(Optional.of(transacao));
-        when(categoriaRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class,
                 () -> transacaoService.classificar(10L, 1L));
