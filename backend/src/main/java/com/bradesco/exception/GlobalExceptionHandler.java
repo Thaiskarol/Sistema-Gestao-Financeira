@@ -2,6 +2,8 @@ package com.bradesco.exception;
 
 import java.util.List;
 
+import com.bradesco.exception.TokenInvalidoException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -129,4 +131,17 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
+
+        @ExceptionHandler(TokenInvalidoException.class)
+        public ResponseEntity<ErrorResponse> handleTokenInvalido(TokenInvalidoException ex) {
+        ErrorResponse response = new ErrorResponse(false, ex.getMessage(), null, List.of());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+
+        // JSON malformado ou valor de enum inválido (ex.: tipo de investimento) viram 400, e não 500
+        @ExceptionHandler(HttpMessageNotReadableException.class)
+        public ResponseEntity<ErrorResponse> handleCorpoIlegivel(HttpMessageNotReadableException ex) {
+        ErrorResponse response = new ErrorResponse(false, "Corpo da requisição inválido.", null, List.of());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
 }

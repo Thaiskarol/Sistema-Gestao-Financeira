@@ -41,8 +41,7 @@ public class TransacaoService {
         Usuario usuario = usuarioRepository.findById(dados.usuarioId())
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
 
-        Categoria categoria = categoriaRepository.findById(dados.categoriaId())
-                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada."));
+       Categoria categoria = buscarCategoria(dados.categoriaId(), dados.usuarioId());
 
         Transacao transacao = new Transacao();
 
@@ -97,8 +96,7 @@ public class TransacaoService {
             throw new ResourceNotFoundException("Transação não encontrada para este usuário.");
         }
 
-        Categoria categoria = categoriaRepository.findById(dados.categoriaId())
-                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada."));
+        Categoria categoria = buscarCategoria(dados.categoriaId(), dados.usuarioId());
 
         transacao.setDescricao(dados.descricao());
         transacao.setRecorrencia(dados.recorrencia());
@@ -114,8 +112,7 @@ public class TransacaoService {
         Transacao transacao = transacaoRepository.findById(transacaoId)
             .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada."));
 
-        Categoria categoria = categoriaRepository.findById(categoriaId)
-            .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada."));
+        Categoria categoria = buscarCategoria(categoriaId, donoDa(transacao));
 
         transacao.setCategoria(categoria);
 
@@ -136,44 +133,43 @@ public class TransacaoService {
         transacaoRepository.delete(transacao);
     }
 
-    public List<TransacaoResponseDTO> importar(ImportacaoRequestDTO dados) {
+    
+public List<TransacaoResponseDTO> importar(ImportacaoRequestDTO dados) {
 
-        Usuario usuario = usuarioRepository.findById(dados.usuarioId())
-                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
+    Usuario usuario = usuarioRepository.findById(dados.usuarioId())
+            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
 
-        List<Transacao> salvas = new ArrayList<>();
+    List<Transacao> salvas = new ArrayList<>();
 
-        for (TransacaoRequestDTO item : dados.transacoes()) {
+    for (TransacaoRequestDTO item : dados.transacoes()) {
 
-            if (item.valor() == null || item.valor().signum() <= 0) {
-                continue;
-            }
+        Categoria categoria = buscarCategoria(item.categoriaId(), dados.usuarioId());
 
-            Categoria categoria = categoriaRepository.findById(item.categoriaId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada."));
+        Transacao t = new Transacao();
 
-            Transacao t = new Transacao();
+        t.setDescricao(item.descricao());
+        t.setEstabelecimento(item.estabelecimento());
+        t.setValor(item.valor());
+        t.setDataTransacao(item.dataTransacao());
+        t.setRecorrencia(item.recorrencia());
+        t.setTipo(item.tipo());
+        t.setUsuario(usuario);
+        t.setCategoria(categoria);
 
-            t.setDescricao(item.descricao());
-            t.setEstabelecimento(item.estabelecimento());
-            t.setValor(item.valor());
-            t.setDataTransacao(item.dataTransacao());
-            t.setRecorrencia(item.recorrencia());
-            t.setTipo(item.tipo());
-            t.setUsuario(usuario);
-            t.setCategoria(categoria);
-
-            salvas.add(transacaoRepository.save(t));
-        }
-
-        return salvas.stream()
-                .map(this::toResponse)
-                .toList();
+        salvas.add(transacaoRepository.save(t));
     }
 
+    return salvas.stream()
+            .map(this::toResponse)
+            .toList();
+}
     private TransacaoResponseDTO toResponse(Transacao transacao) {
 
         return TransacaoResponseDTO.from(transacao);
+    }
+
+        private Long donoDa(Transacao transacao) {
+        return transacao.getUsuario().getId();
     }
 
     @Transactional
@@ -182,11 +178,23 @@ public class TransacaoService {
         Transacao transacao = transacaoRepository.findById(transacaoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada."));
 
-        Categoria novaCategoria = categoriaRepository.findById(novaCategoriaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada."));
+       Categoria novaCategoria = buscarCategoria(novaCategoriaId, donoDa(transacao));
 
         transacao.setCategoria(novaCategoria);
 
         return toResponse(transacaoRepository.save(transacao));
     }
+
+        // Aceita categoria padrão ou do próprio usuário. Categoria de outro usuário -> 404.
+    private Categoria buscarCategoria(Long categoriaId, Long usuarioId) {
+        Categoria categoria = categoriaRepository.findById(categoriaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada."));
+
+        if (categoria.getUsuario() != null
+                && !categoria.getUsuario().getId().equals(usuarioId)) {
+            throw new ResourceNotFoundException("Categoria não encontrada.");
+        }
+        return categoria;
+    }
 }
+
