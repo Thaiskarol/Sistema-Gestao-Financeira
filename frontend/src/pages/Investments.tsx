@@ -1,3 +1,4 @@
+
 import { useMemo, useState, type ReactNode, type FormEvent } from "react";
 import {
   ArrowUpRight,
@@ -6,6 +7,7 @@ import {
   BriefcaseBusiness,
   TrendingUp,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -18,9 +20,21 @@ import {
 } from "recharts";
 import { AppLayout } from "../layouts/AppLayout";
 
-import { useQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { rotuloMes } from "@/lib/format";
-import { getEvolucaoPatrimonial } from "@/services/investimentos";
+import {
+  getEvolucaoPatrimonial,
+  getReservaEmergencia,
+  getCarteira,
+  getInvestimentos,
+  registrarInvestimento,
+  excluirInvestimento,
+  type TipoInvestimento,
+} from "@/services/investimentos";
 
 const formatarMoeda = (valor: number) =>
   valor.toLocaleString("pt-BR", {
@@ -28,13 +42,13 @@ const formatarMoeda = (valor: number) =>
     currency: "BRL",
   });
 
-
-const carteira = [
-  { nome: "Renda fixa", valor: 25608, cor: "bg-[#193f59]" },
-  { nome: "Fundos", valor: 8536, cor: "bg-[#32885e]" },
-  { nome: "Ações", valor: 6402, cor: "bg-[#193f59]" },
-  { nome: "Criptoativos", valor: 2134, cor: "bg-[#e5a900]" },
-];
+const COR: Record<TipoInvestimento, string> = {
+  RENDA_FIXA: "bg-[#193f59]",
+  FUNDOS: "bg-[#32885e]",
+  ACOES: "bg-[#8c092e]",
+  CRIPTOATIVOS: "bg-[#e5a900]",
+  OUTROS: "bg-[#777]",
+};
 
 type SummaryCardProps = {
   titulo: string;
@@ -73,41 +87,78 @@ function SummaryCard({
 }
 
 export default function Investimentos() {
+  const queryClient = useQueryClient();
+
   const [periodo, setPeriodo] = useState("12");
   const [modalAberto, setModalAberto] = useState(false);
-  const [tipoInvestimento, setTipoInvestimento] = useState("Renda fixa");
+  const [tipoInvestimento, setTipoInvestimento] =
+    useState<TipoInvestimento>("RENDA_FIXA");
   const [nomeInvestimento, setNomeInvestimento] = useState("");
   const [valorInvestimento, setValorInvestimento] = useState("");
-  const [investimentosAdicionados, setInvestimentosAdicionados] = useState<
-    { nome: string; tipo: string; valor: number }[]
-  >([]);
-
-  const totalCarteira = carteira.reduce((total, item) => total + item.valor, 0);
-  const totalAdicionado = investimentosAdicionados.reduce(
-    (total, item) => total + item.valor,
-    0,
-  );
-  const patrimonioTotal = totalCarteira + totalAdicionado;
-  const reservaEmergencia = 12500;
 
   const patrimonioQ = useQuery({
-  queryKey: ["patrimonio"],
-  queryFn: getEvolucaoPatrimonial,
-});
+    queryKey: ["patrimonio"],
+    queryFn: getEvolucaoPatrimonial,
+  });
 
-const historicoPatrimonio = useMemo(
-  () =>
-    (patrimonioQ.data ?? []).map((p) => ({
-      mes: rotuloMes(p.mes),
-      valor: p.patrimonioAcumulado,
-    })),
-  [patrimonioQ.data],
-);
+  const carteiraQ = useQuery({
+    queryKey: ["carteira"],
+    queryFn: getCarteira,
+  });
 
-const dadosGrafico =
-  periodo === "6"
-    ? historicoPatrimonio.slice(-6)
-    : historicoPatrimonio.slice(-12);
+  const investimentosQ = useQuery({
+    queryKey: ["investimentos"],
+    queryFn: getInvestimentos,
+  });
+
+  const reservaQ = useQuery({
+    queryKey: ["reserva-emergencia"],
+    queryFn: getReservaEmergencia,
+  });
+
+  const registrar = useMutation({
+    mutationFn: registrarInvestimento,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["investimentos"] });
+      queryClient.invalidateQueries({ queryKey: ["carteira"] });
+
+      setNomeInvestimento("");
+      setValorInvestimento("");
+      setTipoInvestimento("RENDA_FIXA");
+      setModalAberto(false);
+    },
+    onError: (erro) => {
+      window.alert((erro as Error).message);
+    },
+  });
+
+  const excluir = useMutation({
+    mutationFn: excluirInvestimento,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["investimentos"] });
+      queryClient.invalidateQueries({ queryKey: ["carteira"] });
+    },
+    onError: (erro) => {
+      window.alert((erro as Error).message);
+    },
+  });
+
+  const historicoPatrimonio = useMemo(
+    () =>
+      (patrimonioQ.data ?? []).map((p) => ({
+        mes: rotuloMes(p.mes),
+        valor: p.patrimonioAcumulado,
+      })),
+    [patrimonioQ.data],
+  );
+
+  const dadosGrafico =
+    periodo === "6"
+      ? historicoPatrimonio.slice(-6)
+      : historicoPatrimonio.slice(-12);
+
+  const despesaMediaMensal = reservaQ.data?.despesaMediaMensal ?? 0;
+  const mesesCobertura = reservaQ.data?.mesesCobertura ?? 0;
 
   function adicionarInvestimento(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -118,18 +169,11 @@ const dadosGrafico =
       return;
     }
 
-    setInvestimentosAdicionados((atuais) => [
-      ...atuais,
-      {
-        nome: nomeInvestimento.trim(),
-        tipo: tipoInvestimento,
-        valor,
-      },
-    ]);
-
-    setNomeInvestimento("");
-    setValorInvestimento("");
-    setModalAberto(false);
+    registrar.mutate({
+      nome: nomeInvestimento.trim(),
+      tipo: tipoInvestimento,
+      valor,
+    });
   }
 
   return (
@@ -163,7 +207,7 @@ const dadosGrafico =
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <SummaryCard
             titulo="Total investido"
-            valor={totalCarteira + totalAdicionado}
+            valor={carteiraQ.data?.total ?? 0}
             descricao="Soma dos investimentos registrados"
             icon={<TrendingUp size={19} />}
             iconClass="bg-[#eaf0f5] text-[#193f59]"
@@ -171,16 +215,18 @@ const dadosGrafico =
 
           <SummaryCard
             titulo="Patrimônio total"
-            valor={patrimonioTotal + reservaEmergencia}
-            descricao="Investimentos e reserva de emergência"
+            valor={
+              historicoPatrimonio[historicoPatrimonio.length - 1]?.valor ?? 0
+            }
+            descricao="Calculado a partir das suas transações"
             icon={<BriefcaseBusiness size={19} />}
             iconClass="bg-[#eaf0f5] text-[#193f59]"
           />
 
           <SummaryCard
-            titulo="Reserva de emergência"
-            valor={reservaEmergencia}
-            descricao="Valor separado para imprevistos"
+            titulo="Reserva ideal"
+            valor={reservaQ.data?.valorIdealReserva ?? 0}
+            descricao="Valor recomendado para sua reserva"
             icon={<HeartPulse size={19} />}
             iconClass="bg-[#fbedf0] text-[#bd0c36]"
           />
@@ -213,7 +259,7 @@ const dadosGrafico =
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-[#eaf5ef] px-2 py-1 text-[10px] font-semibold text-[#39845b]">
                 <ArrowUpRight size={12} />
-                Evolução 
+                Evolução
               </span>
             </div>
 
@@ -270,8 +316,6 @@ const dadosGrafico =
                 </LineChart>
               </ResponsiveContainer>
             </div>
-
-            
           </article>
 
           <div className="min-w-0 space-y-4">
@@ -281,54 +325,47 @@ const dadosGrafico =
                   Carteira
                 </h2>
                 <span className="rounded-full bg-[#eaf0f5] px-2 py-1 text-[10px] font-semibold text-[#193f59]">
-                  {carteira.length} tipos
+                  {carteiraQ.data?.itens.length ?? 0} tipos
                 </span>
               </div>
 
               <div className="mt-5 space-y-4">
-                {carteira.map((item) => {
-                  const percentual =
-                    totalCarteira > 0
-                      ? (item.valor / totalCarteira) * 100
-                      : 0;
-
-                  return (
-                    <div key={item.nome}>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="flex min-w-0 items-center gap-2 text-xs text-[#555]">
-                          <span
-                            className={`size-2 shrink-0 rounded-sm ${item.cor}`}
-                          />
-                          <span className="truncate">{item.nome}</span>
-                        </span>
-                        <span className="shrink-0 text-xs font-semibold text-[#333]">
-                          {formatarMoeda(item.valor)}
-                        </span>
-                      </div>
-
-                      <div
-                        className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#edf0f0]"
-                        role="progressbar"
-                        aria-label={`Participação de ${item.nome}`}
-                        aria-valuenow={Math.round(percentual)}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                      >
-                        <div
-                          className={`h-full rounded-full ${item.cor}`}
-                          style={{ width: `${percentual}%` }}
+                {(carteiraQ.data?.itens ?? []).map((item) => (
+                  <div key={item.tipo}>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="flex min-w-0 items-center gap-2 text-xs text-[#555]">
+                        <span
+                          className={`size-2 shrink-0 rounded-sm ${COR[item.tipo]}`}
                         />
-                      </div>
+                        <span className="truncate">{item.nome}</span>
+                      </span>
+                      <span className="shrink-0 text-xs font-semibold text-[#333]">
+                        {formatarMoeda(item.valor)}
+                      </span>
                     </div>
-                  );
-                })}
+
+                    <div
+                      className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#edf0f0]"
+                      role="progressbar"
+                      aria-label={`Participação de ${item.nome}`}
+                      aria-valuenow={Math.round(item.percentual)}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    >
+                      <div
+                        className={`h-full rounded-full ${COR[item.tipo]}`}
+                        style={{ width: `${item.percentual}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <div className="mt-5 border-t border-[#eeeeee] pt-4">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs text-[#777]">Total da carteira</span>
                   <span className="text-sm font-bold text-[#303030]">
-                    {formatarMoeda(totalCarteira)}
+                    {formatarMoeda(carteiraQ.data?.total ?? 0)}
                   </span>
                 </div>
               </div>
@@ -351,52 +388,71 @@ const dadosGrafico =
               </div>
 
               <p className="mt-5 text-xl font-bold text-[#303030]">
-                {formatarMoeda(reservaEmergencia)}
+                {formatarMoeda(reservaQ.data?.valorIdealReserva ?? 0)}
               </p>
 
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#edf0f0]">
-                <div className="h-full w-[65%] rounded-full bg-[#32885e]" />
-              </div>
-
-              <div className="mt-3 flex justify-between gap-3 text-[11px] text-[#888]">
-                <p>Progresso</p>
-                <p>65%</p>
-              </div>
-
-              <p className="mt-2 text-xs leading-4 text-[#888]">
-                Defina uma meta de reserva adequada às suas despesas mensais.
+              <p className="mt-3 text-xs leading-5 text-[#888]">
+                Cobre {mesesCobertura} meses da sua despesa média de{" "}
+                {formatarMoeda(despesaMediaMensal)}
               </p>
             </article>
           </div>
         </section>
 
-        {/* Investimentos registrados localmente */}
-        {investimentosAdicionados.length > 0 && (
-          <section className="rounded-2xl border border-[#dedede] bg-white p-5 sm:p-6">
-            <h2 className="text-base font-semibold text-[#303030]">
-              Investimentos registrados nesta sessão
-            </h2>
+        {/* Meus investimentos */}
+        <section className="rounded-2xl border border-[#dedede] bg-white p-5 sm:p-6">
+          <h2 className="text-base font-semibold text-[#303030]">
+            Meus investimentos
+          </h2>
 
-            <div className="mt-4 divide-y divide-[#eeeeee]">
-              {investimentosAdicionados.map((item, index) => (
-                <div
-                  key={`${item.nome}-${index}`}
-                  className="flex flex-col justify-between gap-2 py-3 sm:flex-row sm:items-center"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-[#333]">
-                      {item.nome}
-                    </p>
-                    <p className="mt-1 text-xs text-[#888]">{item.tipo}</p>
-                  </div>
+          <div className="mt-4 divide-y divide-[#eeeeee]">
+            {(investimentosQ.data ?? []).map((item) => (
+              <div
+                key={item.id}
+                className="flex flex-col justify-between gap-3 py-3 sm:flex-row sm:items-center"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-[#333]">
+                    {item.nome}
+                  </p>
+                  <p className="mt-1 text-xs text-[#888]">
+                    {item.tipoDescricao}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between gap-4 sm:justify-end">
                   <p className="text-sm font-semibold text-[#193f59]">
                     {formatarMoeda(item.valor)}
                   </p>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `Deseja excluir o investimento "${item.nome}"?`,
+                        )
+                      ) {
+                        excluir.mutate(item.id);
+                      }
+                    }}
+                    disabled={excluir.isPending}
+                    className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-[#f0d5dc] px-3 py-2 text-xs font-semibold text-[#bd0c36] transition hover:bg-[#fbedf0] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Trash2 size={14} />
+                    Excluir
+                  </button>
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
+              </div>
+            ))}
+
+            {investimentosQ.data?.length === 0 && (
+              <p className="py-5 text-center text-sm text-[#888]">
+                Nenhum investimento registrado.
+              </p>
+            )}
+          </div>
+        </section>
       </div>
 
       {/* Modal para registrar investimento */}
@@ -466,14 +522,16 @@ const dadosGrafico =
                 <select
                   id="tipo-investimento"
                   value={tipoInvestimento}
-                  onChange={(event) => setTipoInvestimento(event.target.value)}
+                  onChange={(event) =>
+                    setTipoInvestimento(event.target.value as TipoInvestimento)
+                  }
                   className="min-h-11 w-full rounded-xl border border-[#dedede] bg-white px-3 text-sm outline-none focus:border-[#bd0c36]"
                 >
-                  <option>Renda fixa</option>
-                  <option>Fundos</option>
-                  <option>Ações</option>
-                  <option>Criptoativos</option>
-                  <option>Outros</option>
+                  <option value="RENDA_FIXA">Renda fixa</option>
+                  <option value="FUNDOS">Fundos</option>
+                  <option value="ACOES">Ações</option>
+                  <option value="CRIPTOATIVOS">Criptoativos</option>
+                  <option value="OUTROS">Outros</option>
                 </select>
               </div>
 
@@ -507,10 +565,11 @@ const dadosGrafico =
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#bd0c36] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a5092e]"
+                  disabled={registrar.isPending}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#bd0c36] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a5092e] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Plus size={16} />
-                  Registrar
+                  {registrar.isPending ? "Registrando..." : "Registrar"}
                 </button>
               </div>
             </form>

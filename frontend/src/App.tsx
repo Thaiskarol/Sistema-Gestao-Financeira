@@ -1,3 +1,4 @@
+
 import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
@@ -7,6 +8,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Transactions = lazy(() => import("./pages/Transactions"));
 const Categories = lazy(() => import("./pages/Categories"));
@@ -42,6 +44,7 @@ function App() {
           <Route path="/" element={<Login />} />
           <Route path="/cadastro" element={<Register />} />
           <Route path="/esqueci-senha" element={<ForgotPassword />} />
+          <Route path="/redefinir-senha" element={<ResetPassword />} />
 
           {/* Rotas protegidas: exigem usuário autenticado */}
           <Route element={<RequireAuth />}>

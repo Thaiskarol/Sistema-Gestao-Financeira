@@ -1,6 +1,5 @@
-
 import { useMemo, useState, type FormEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
   Tag,
@@ -27,6 +26,11 @@ import { AppLayout } from "../layouts/AppLayout";
 import { getCategorias } from "@/services/transacoes";
 import { getGastosPorCategoria } from "@/services/financeiro";
 import { getTransacoes } from "@/services/transacoes";
+import {
+  atualizarCategoria,
+  criarCategoria,
+  excluirCategoria,
+} from "@/services/categorias";
 
 type Category = {
   id: number;
@@ -35,24 +39,109 @@ type Category = {
   amount: number;
   color: string;
   type: "Despesa" | "Receita";
+  padrao: boolean;
 };
 
 // ALTERAÇÃO: os dados abaixo deixaram de ser a lista exibida na tela.
 // Agora servem somente como referência visual para manter as cores e os tipos
 // associados aos nomes das categorias.
-const categoriasBase: Category[] = [
-  { id: 1, name: "Alimentação", transactions: 0, amount: 0, color: "#970b2e", type: "Despesa" },
-  { id: 2, name: "Moradia", transactions: 0, amount: 0, color: "#19435d", type: "Despesa" },
-  { id: 3, name: "Transporte", transactions: 0, amount: 0, color: "#e9ad00", type: "Despesa" },
-  { id: 4, name: "Saúde", transactions: 0, amount: 0, color: "#30885c", type: "Despesa" },
-  { id: 5, name: "Educação", transactions: 0, amount: 0, color: "#19435d", type: "Despesa" },
-  { id: 6, name: "Lazer", transactions: 0, amount: 0, color: "#970b2e", type: "Despesa" },
-  { id: 7, name: "Compras", transactions: 0, amount: 0, color: "#e9ad00", type: "Despesa" },
-  { id: 8, name: "Investimentos", transactions: 0, amount: 0, color: "#19435d", type: "Receita" },
-  { id: 9, name: "Assinaturas", transactions: 0, amount: 0, color: "#333333", type: "Despesa" },
-  { id: 10, name: "Impostos", transactions: 0, amount: 0, color: "#970b2e", type: "Despesa" },
-  { id: 11, name: "Contas e Serviços", transactions: 0, amount: 0, color: "#30885c", type: "Despesa" },
-  { id: 12, name: "Outros", transactions: 0, amount: 0, color: "#333333", type: "Despesa" },
+const categoriasBase: Omit<Category, "padrao">[] = [
+  {
+    id: 1,
+    name: "Alimentação",
+    transactions: 0,
+    amount: 0,
+    color: "#970b2e",
+    type: "Despesa",
+  },
+  {
+    id: 2,
+    name: "Moradia",
+    transactions: 0,
+    amount: 0,
+    color: "#19435d",
+    type: "Despesa",
+  },
+  {
+    id: 3,
+    name: "Transporte",
+    transactions: 0,
+    amount: 0,
+    color: "#e9ad00",
+    type: "Despesa",
+  },
+  {
+    id: 4,
+    name: "Saúde",
+    transactions: 0,
+    amount: 0,
+    color: "#30885c",
+    type: "Despesa",
+  },
+  {
+    id: 5,
+    name: "Educação",
+    transactions: 0,
+    amount: 0,
+    color: "#19435d",
+    type: "Despesa",
+  },
+  {
+    id: 6,
+    name: "Lazer",
+    transactions: 0,
+    amount: 0,
+    color: "#970b2e",
+    type: "Despesa",
+  },
+  {
+    id: 7,
+    name: "Compras",
+    transactions: 0,
+    amount: 0,
+    color: "#e9ad00",
+    type: "Despesa",
+  },
+  {
+    id: 8,
+    name: "Investimentos",
+    transactions: 0,
+    amount: 0,
+    color: "#19435d",
+    type: "Receita",
+  },
+  {
+    id: 9,
+    name: "Assinaturas",
+    transactions: 0,
+    amount: 0,
+    color: "#333333",
+    type: "Despesa",
+  },
+  {
+    id: 10,
+    name: "Impostos",
+    transactions: 0,
+    amount: 0,
+    color: "#970b2e",
+    type: "Despesa",
+  },
+  {
+    id: 11,
+    name: "Contas e Serviços",
+    transactions: 0,
+    amount: 0,
+    color: "#30885c",
+    type: "Despesa",
+  },
+  {
+    id: 12,
+    name: "Outros",
+    transactions: 0,
+    amount: 0,
+    color: "#333333",
+    type: "Despesa",
+  },
 ];
 
 const colorOptions = [
@@ -64,19 +153,38 @@ const colorOptions = [
   "#bd0c36",
 ];
 
+const EXTRAS_KEY = "financialCategoriasExtras";
+type Extras = Record<number, { color: string; type: "Despesa" | "Receita" }>;
+
+function lerExtras(): Extras {
+  try {
+    return JSON.parse(localStorage.getItem(EXTRAS_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+function gravarExtra(id: number, extra: Extras[number]) {
+  const extras = lerExtras();
+  extras[id] = extra;
+  localStorage.setItem(EXTRAS_KEY, JSON.stringify(extras));
+}
+
 const iconForCategory = (name: string) => {
   const normalized = name.toLowerCase();
 
   if (normalized.includes("alimenta")) return Utensils;
   if (normalized.includes("moradia")) return House;
   if (normalized.includes("transport")) return CarFront;
-  if (normalized.includes("saúde") || normalized.includes("saude")) return HeartPulse;
+  if (normalized.includes("saúde") || normalized.includes("saude"))
+    return HeartPulse;
   if (normalized.includes("educa")) return GraduationCap;
   if (normalized.includes("lazer")) return Gamepad2;
   if (normalized.includes("compra")) return ShoppingBag;
   if (normalized.includes("invest")) return TrendingUp;
   if (normalized.includes("imposto")) return Receipt;
-  if (normalized.includes("serviço") || normalized.includes("servico")) return Wrench;
+  if (normalized.includes("serviço") || normalized.includes("servico"))
+    return Wrench;
   if (normalized.includes("assinatura")) return Tag;
 
   return CircleEllipsis;
@@ -114,8 +222,9 @@ export default function Categories() {
   // Os valores de gastos vêm do relatório por categoria e a quantidade
   // de transações é calculada a partir das transações retornadas pela API.
   const base: Category[] = useMemo(() => {
+    const extras = lerExtras();
     const gastosMap = new Map(
-      (gastosQ.data ?? []).map((g) => [g.rotulo, g.valor])
+      (gastosQ.data ?? []).map((g) => [g.rotulo, g.valor]),
     );
 
     const contagemMap = new Map<number, number>();
@@ -124,15 +233,14 @@ export default function Categories() {
       if (transacao.categoriaId != null) {
         contagemMap.set(
           transacao.categoriaId,
-          (contagemMap.get(transacao.categoriaId) ?? 0) + 1
+          (contagemMap.get(transacao.categoriaId) ?? 0) + 1,
         );
       }
     });
 
     return (categoriasQ.data ?? []).map((categoria, index) => {
       const referencia = categoriasBase.find(
-        (item) =>
-          item.name.toLowerCase() === categoria.nome.toLowerCase()
+        (item) => item.name.toLowerCase() === categoria.nome.toLowerCase(),
       );
 
       return {
@@ -140,8 +248,12 @@ export default function Categories() {
         name: categoria.nome,
         transactions: contagemMap.get(categoria.id) ?? 0,
         amount: gastosMap.get(categoria.nome) ?? 0,
-        color: referencia?.color ?? colorOptions[index % colorOptions.length],
-        type: referencia?.type ?? "Despesa",
+        color:
+          extras[categoria.id]?.color ??
+          referencia?.color ??
+          colorOptions[index % colorOptions.length],
+        type: extras[categoria.id]?.type ?? referencia?.type ?? "Despesa",
+        padrao: categoria.padrao,
       };
     });
   }, [categoriasQ.data, gastosQ.data, transacoesQ.data]);
@@ -150,17 +262,26 @@ export default function Categories() {
   // A propriedade "source" identifica a versão da lista recebida do backend.
   // Isso evita precisar de useEffect com setState e elimina o aviso
   // react(set-state-in-effect).
-  const [localCategories, setLocalCategories] = useState<{
-    source: Category[];
-    value: Category[];
-  } | null>(null);
+  const categories = base;
+  const queryClient = useQueryClient();
 
-  // ALTERAÇÃO: se a referência dos dados da API mudar, usamos a lista nova.
-  // Enquanto ela não mudar, preservamos as criações, edições e exclusões locais.
-  const categories =
-    localCategories?.source === base
-      ? localCategories.value
-      : base;
+  const salvar = useMutation({
+    mutationFn: ({ id, nome }: { id: number | null; nome: string }) =>
+      id === null ? criarCategoria(nome) : atualizarCategoria(id, nome),
+    onSuccess: (cat) => {
+      gravarExtra(cat.id, { color, type });
+      queryClient.invalidateQueries({ queryKey: ["categorias"] });
+      setModalOpen(false);
+    },
+    onError: (e) => setError((e as Error).message),
+  });
+
+  const excluir = useMutation({
+    mutationFn: excluirCategoria,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["categorias"] }),
+    onError: (e) => window.alert((e as Error).message),
+  });
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("Todas");
@@ -183,7 +304,7 @@ export default function Categories() {
 
         return matchesSearch && matchesType;
       }),
-    [categories, search, typeFilter]
+    [categories, search, typeFilter],
   );
 
   function openNewCategory() {
@@ -217,7 +338,7 @@ export default function Categories() {
     const duplicate = categories.some(
       (category) =>
         category.name.toLowerCase() === cleanName.toLowerCase() &&
-        category.id !== editingId
+        category.id !== editingId,
     );
 
     if (duplicate) {
@@ -225,57 +346,21 @@ export default function Categories() {
       return;
     }
 
-    if (editingId !== null) {
-      // ALTERAÇÃO: a edição agora atualiza o estado local associado à versão
-      // atual dos dados da API, sem alterar diretamente os dados recebidos.
-      setLocalCategories({
-        source: base,
-        value: categories.map((category) =>
-          category.id === editingId
-            ? { ...category, name: cleanName, type, color }
-            : category
-        ),
-      });
-    } else {
-      // ALTERAÇÃO: novas categorias continuam aparecendo na tela localmente.
-      // Elas não são persistidas no backend nesta etapa da integração.
-      setLocalCategories({
-        source: base,
-        value: [
-          ...categories,
-          {
-            id: Date.now(),
-            name: cleanName,
-            transactions: 0,
-            amount: 0,
-            color,
-            type,
-          },
-        ],
-      });
-    }
-
-    setModalOpen(false);
+    salvar.mutate({ id: editingId, nome: cleanName });
   }
 
   function deleteCategory(category: Category) {
     const confirmed = window.confirm(
-      `Deseja excluir a categoria "${category.name}"?`
+      `Deseja excluir a categoria "${category.name}"?`,
     );
 
     if (!confirmed) return;
 
-    // ALTERAÇÃO: a exclusão também é mantida somente no estado local.
-    // Assim preservamos o comportamento visual enquanto não há integração
-    // com um endpoint de exclusão de categorias.
-    setLocalCategories({
-      source: base,
-      value: categories.filter((item) => item.id !== category.id),
-    });
+    excluir.mutate(category.id);
   }
 
   return (
-    <AppLayout subtitle="Junho de 2025">
+    <AppLayout subtitle="Suas categorias">
       <section className="space-y-6">
         {/* Título e ação principal */}
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -362,9 +447,7 @@ export default function Categories() {
                     </h2>
                     <p className="mt-1 text-xs text-[#888]">
                       {category.transactions}{" "}
-                      {category.transactions === 1
-                        ? "transação"
-                        : "transações"}
+                      {category.transactions === 1 ? "transação" : "transações"}
                     </p>
                   </div>
 
@@ -373,24 +456,34 @@ export default function Categories() {
                   </p>
 
                   <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
-                    <button
-                      type="button"
-                      aria-label={`Editar ${category.name}`}
-                      title="Editar categoria"
-                      onClick={() => openEditCategory(category)}
-                      className="rounded-lg p-2 text-[#777] transition hover:bg-[#fbedf0] hover:text-[#bd0c36]"
-                    >
-                      <Pencil size={16} strokeWidth={1.6} />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`Excluir ${category.name}`}
-                      title="Excluir categoria"
-                      onClick={() => deleteCategory(category)}
-                      className="rounded-lg p-2 text-[#777] transition hover:bg-red-50 hover:text-red-600"
-                    >
-                      <Trash2 size={16} strokeWidth={1.6} />
-                    </button>
+                    {!category.padrao && (
+                      <>
+                        <button
+                          type="button"
+                          aria-label={`Editar ${category.name}`}
+                          title="Editar categoria"
+                          onClick={() => openEditCategory(category)}
+                          className="rounded-lg p-2 text-[#777] transition hover:bg-[#fbedf0] hover:text-[#bd0c36]"
+                        >
+                          <Pencil size={16} strokeWidth={1.6} />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Excluir ${category.name}`}
+                          title="Excluir categoria"
+                          onClick={() => deleteCategory(category)}
+                          className="rounded-lg p-2 text-[#777] transition hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 size={16} strokeWidth={1.6} />
+                        </button>
+                      </>
+                    )}
+
+                    {category.padrao && (
+                      <span className="shrink-0 rounded-full bg-[#f5f5f5] px-2 py-1 text-[10px] text-[#777]">
+                        Padrão
+                      </span>
+                    )}
                   </div>
                 </article>
               );

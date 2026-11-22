@@ -1,7 +1,12 @@
+
 import { useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ultimoDiaDoMes } from "@/lib/format";
-import { criarMeta as criarMetaApi, getMetas } from "@/services/metas";
+import {
+  criarMeta as criarMetaApi,
+  getMetas,
+  excluirMeta as excluirMetaApi,
+} from "@/services/metas";
 import {
   Plus,
   Target,
@@ -111,6 +116,17 @@ export default function Goals() {
     onError: (e) => window.alert((e as Error).message),
   });
 
+  const excluir = useMutation({
+    mutationFn: excluirMetaApi,
+    onSuccess: (_r, id) => {
+      const extras = lerExtras();
+      delete extras[id];
+      localStorage.setItem(EXTRAS_KEY, JSON.stringify(extras));
+      queryClient.invalidateQueries({ queryKey: ["metas"] });
+    },
+    onError: (e) => window.alert((e as Error).message),
+  });
+
   const totalAcumulado = metas.reduce(
     (total, meta) => total + meta.acumulado,
     0
@@ -143,9 +159,9 @@ export default function Goals() {
     });
   }
 
-  function excluirMeta(_id: number) {
-    window.alert("A exclusão de metas será liberada em breve.");
+  function excluirMeta(id: number) {
     setMenuAberto(null);
+    if (window.confirm("Deseja excluir esta meta?")) excluir.mutate(id);
   }
 
   return (

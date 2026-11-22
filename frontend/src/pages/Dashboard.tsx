@@ -1,3 +1,4 @@
+
 import { useMemo, useState } from "react";
 import {
   ArrowDownLeft,
@@ -23,7 +24,7 @@ import { AppLayout } from "../layouts/AppLayout";
 
 import { useQuery } from "@tanstack/react-query";
 import { getUsuario } from "@/lib/session";
-import { rotuloMes } from "@/lib/format";
+import { mesAtual, rotuloMes } from "@/lib/format";
 import {
   getEvolucaoDespesas,
   getEvolucaoReceitas,
@@ -31,11 +32,7 @@ import {
   getResumo,
 } from "@/services/financeiro";
 import { getCategorias, getTransacoes } from "@/services/transacoes";
-
-const budgetTotal = 5900;
-const expensesTotal = 3650;
-const budgetUsed = Math.round((expensesTotal / budgetTotal) * 100);
-const budgetRemaining = budgetTotal - expensesTotal;
+import { getOrcamentos } from "@/services/orcamentos";
 
 function money(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -112,18 +109,40 @@ function SummaryCard({
 }
 
 const CORES = [
-    "#23445d",
-    "#368661",
-    "#e5ad20",
-    "#a30f35",
-    "#6b7a8f",
-    "#8c092e",
-  ];
+  "#23445d",
+  "#368661",
+  "#e5ad20",
+  "#a30f35",
+  "#6b7a8f",
+  "#8c092e",
+];
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const [period, setPeriod] = useState<3 | 6>(6);
 
+  // Orçamentos do mês atual
+  const orcQ = useQuery({
+    queryKey: ["orcamentos", mesAtual()],
+    queryFn: () => getOrcamentos(mesAtual()),
+  });
+
+  const budgetTotal = (orcQ.data ?? []).reduce(
+    (s, o) => s + Number(o.limite),
+    0
+  );
+
+  const expensesTotal = (orcQ.data ?? []).reduce(
+    (s, o) => s + Number(o.valorConsumido),
+    0
+  );
+
+  const budgetUsed =
+    budgetTotal > 0
+      ? Math.round((expensesTotal / budgetTotal) * 100)
+      : 0;
+
+  const budgetRemaining = budgetTotal - expensesTotal;
 
   const resumoQ = useQuery({
     queryKey: ["resumo"],
@@ -162,6 +181,7 @@ export default function Dashboard() {
     gastosQ,
     transacoesQ,
     categoriasQ,
+    orcQ,
   ].find((q) => q.error)?.error as Error | undefined;
 
   // Gráfico de evolução: junta receitas e despesas pelo mês
@@ -211,7 +231,6 @@ export default function Dashboard() {
       color: CORES[i % CORES.length],
     }));
   }, [gastosQ.data]);
-
 
   // Transações recentes
   const transactions = useMemo(() => {
@@ -461,14 +480,30 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-500">Restante</span>
-                <span className="font-semibold text-emerald-700">
+                <span
+                  className={`font-semibold ${
+                    budgetRemaining >= 0
+                      ? "text-emerald-700"
+                      : "text-red-700"
+                  }`}
+                >
                   {money(budgetRemaining)}
                 </span>
               </div>
-              <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2.5 text-xs font-medium text-emerald-700">
-                <CheckCircle2 size={15} />
-                Dentro do orçamento planejado
-              </div>
+
+              {budgetTotal > 0 && (
+                budgetRemaining >= 0 ? (
+                  <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2.5 text-xs font-medium text-emerald-700">
+                    <CheckCircle2 size={15} />
+                    Dentro do orçamento planejado
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-xs font-medium text-red-700">
+                    <CheckCircle2 size={15} />
+                    Orçamento excedido
+                  </div>
+                )
+              )}
             </div>
 
             <button

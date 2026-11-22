@@ -1,4 +1,3 @@
-
 export function rotuloMes(anoMes: string): string {
   return new Date(`${anoMes}-01T00:00:00`).toLocaleDateString("pt-BR", {
     month: "short",
@@ -12,10 +11,7 @@ export function ultimoDiaDoMes(anoMes: string): string {
   return `${anoMes}-${String(dia).padStart(2, "0")}`;
 }
 
-export function baixarCsv(
-  nomeArquivo: string,
-  linhas: (string | number)[][],
-) {
+export function baixarCsv(nomeArquivo: string, linhas: (string | number)[][]) {
   const texto = linhas
     .map((linha) =>
       linha.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";"),
@@ -58,6 +54,13 @@ export function formatDate(value: string | Date): string {
 
 // "2026-11" -> "Novembro"
 export function nomeMes(anoMes: string): string {
-  const nome = new Date(`${anoMes}-01T00:00:00`).toLocaleDateString("pt-BR", { month: "long" });
+  const nome = new Date(`${anoMes}-01T00:00:00`).toLocaleDateString("pt-BR", {
+    month: "long",
+  });
   return nome.charAt(0).toUpperCase() + nome.slice(1);
+}
+ // Mês atual no formato "2026-11"
+export function mesAtual(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }

@@ -13,7 +13,7 @@ export const getTransacoes = () =>
   });
 
 export const getCategorias = () =>
-  apiGet<Categoria[]>("/categorias");
+  apiGet<Categoria[]>("/categorias", { usuarioId: getUsuarioId() });
 
 export type NovaTransacao = {
   descricao: string;

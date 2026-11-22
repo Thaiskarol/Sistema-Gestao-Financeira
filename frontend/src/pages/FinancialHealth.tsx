@@ -1,7 +1,13 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getClassificacao, getScore } from "@/services/saude";
+import {
+  getClassificacao,
+  getScore,
+  getHistoricoScore,
+  getRecomendacoes,
+} from "@/services/saude";
+import { rotuloMes } from "@/lib/format";
 import {
   HeartPulse,
   TrendingUp,
@@ -9,7 +15,6 @@ import {
   ShieldCheck,
   Wallet,
   Target,
-  ArrowUpRight,
   CheckCircle2,
   CircleDollarSign,
 } from "lucide-react";
@@ -24,36 +29,10 @@ import {
 } from "recharts";
 import { AppLayout } from "../layouts/AppLayout";
 
-const historicoScore = [
-  { mes: "Dez", score: 38 },
-  { mes: "Jan", score: 52 },
-  { mes: "Fev", score: 66 },
-  { mes: "Mar", score: 78 },
-  { mes: "Abr", score: 86 },
-  { mes: "Mai", score: 96 },
-  { mes: "Jun", score: 100 },
-];
-
-const recomendacoes = [
-  {
-    titulo: "Complete sua reserva",
-    descricao: "Finalize os 13% restantes da reserva.",
-    pontos: "+4 pontos",
-    icone: ShieldCheck,
-  },
-  {
-    titulo: "Diversifique investimentos",
-    descricao: "Reduza a concentração em renda fixa.",
-    pontos: "+3 pontos",
-    icone: TrendingUp,
-  },
-  {
-    titulo: "Mantenha o orçamento",
-    descricao: "Complete 3 meses dentro do planejado.",
-    pontos: "+2 pontos",
-    icone: Wallet,
-  },
-];
+const mesAtualFormatado = new Date().toLocaleDateString("pt-BR", {
+  month: "long",
+  year: "numeric",
+});
 
 function ScoreCircular({ score }: { score: number }) {
   const circunferencia = 2 * Math.PI * 48;
@@ -109,9 +88,21 @@ export default function FinancialHealth() {
     queryFn: getClassificacao,
   });
 
+  // Busca o histórico depois do score, para já incluir o mês atual
+  const historicoQ = useQuery({
+    queryKey: ["score-historico"],
+    queryFn: getHistoricoScore,
+    enabled: scoreQ.isSuccess,
+  });
+
+  const recQ = useQuery({
+    queryKey: ["recomendacoes"],
+    queryFn: getRecomendacoes,
+  });
+
   const score = scoreQ.data?.score ?? 0;
   const semDados = scoreQ.data ? !scoreQ.data.dadosSuficientes : false;
-  const erro = (scoreQ.error ?? classQ.error) as Error | null;
+  const erro = (scoreQ.error ?? classQ.error ?? historicoQ.error ?? recQ.error) as Error | null;
 
   const classificacao = useMemo(() => {
     switch (classQ.data?.nivel) {
@@ -127,6 +118,53 @@ export default function FinancialHealth() {
         return "—";
     }
   }, [classQ.data]);
+
+  const historicoScore = useMemo(
+    () =>
+      (historicoQ.data ?? []).map((h) => ({
+        mes: rotuloMes(h.mes),
+        score: h.score,
+      })),
+    [historicoQ.data],
+  );
+
+  const n = historicoScore.length;
+  const tendencia =
+    n >= 2
+      ? historicoScore[n - 1].score - historicoScore[n - 2].score
+      : 0;
+
+  const moeda = (v: number) =>
+    v.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+
+  const recomendacoes = useMemo(() => {
+    const r = recQ.data;
+    if (!r) return [];
+
+    return [
+      {
+        titulo: "Reserva de emergência",
+        descricao: `Ideal: ${moeda(r.reserva.valorIdealReserva)} (${r.reserva.mesesCobertura} meses).`,
+        pontos: "Reserva",
+        icone: ShieldCheck,
+      },
+      {
+        titulo: "Invista todo mês",
+        descricao: `${r.investimento.percentualRecomendado}% da renda: ${moeda(r.investimento.valorRecomendado)}.`,
+        pontos: "Investir",
+        icone: TrendingUp,
+      },
+      ...r.metasSugeridas.slice(0, 1).map((m) => ({
+        titulo: m.descricao,
+        descricao: `Objetivo: ${moeda(m.valorObjetivo)}.`,
+        pontos: "Meta",
+        icone: Wallet,
+      })),
+    ];
+  }, [recQ.data]);
 
   // Cada critério vale até 20 pontos; a tela mostra de 0 a 100
   const indicadores = useMemo(
@@ -202,7 +240,9 @@ export default function FinancialHealth() {
                   <h2 className="text-sm font-semibold text-[#333]">
                     Seu score financeiro
                   </h2>
-                  <p className="text-xs text-[#888]">Junho de 2025</p>
+                  <p className="text-xs text-[#888]">
+                    {mesAtualFormatado}
+                  </p>
                 </div>
               </div>
 
@@ -225,9 +265,12 @@ export default function FinancialHealth() {
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-[#888]">Tendência</p>
-                  <p className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-[#32885e]">
-                    <ArrowUpRight size={16} />
-                    Em evolução
+                  <p className="mt-1 text-sm font-semibold text-[#32885e]">
+                    {tendencia > 0
+                      ? "Em evolução"
+                      : tendencia < 0
+                        ? "Em queda"
+                        : "Estável"}
                   </p>
                 </div>
               </div>
@@ -301,55 +344,61 @@ export default function FinancialHealth() {
                 </div>
               </div>
 
-              <div className="h-[230px] w-full sm:h-[255px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={historicoScore}
-                    margin={{ top: 8, right: 8, left: -12, bottom: 0 }}
-                  >
-                    <CartesianGrid
-                      stroke="#e5e5e5"
-                      vertical={false}
-                      strokeDasharray="0"
-                    />
-                    <XAxis
-                      dataKey="mes"
-                      tick={{ fill: "#999", fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                      tickMargin={12}
-                    />
-                    <YAxis
-                      domain={[0, 100]}
-                      ticks={[0, 25, 50, 75, 100]}
-                      tick={{ fill: "#999", fontSize: 10 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <Tooltip
-                      formatter={(value) => [`${value}/100`, "Score"]}
-                      contentStyle={{
-                        borderRadius: 12,
-                        border: "1px solid #e5e5e5",
-                        fontSize: 12,
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="score"
-                      stroke="#193f59"
-                      strokeWidth={2.5}
-                      dot={{
-                        r: 3.5,
-                        fill: "#fff",
-                        stroke: "#193f59",
-                        strokeWidth: 2,
-                      }}
-                      activeDot={{ r: 5 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              {n === 0 ? (
+                <p className="py-10 text-center text-sm text-[#888]">
+                  O histórico começa a ser registrado a partir deste mês.
+                </p>
+              ) : (
+                <div className="h-[230px] w-full sm:h-[255px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={historicoScore}
+                      margin={{ top: 8, right: 8, left: -12, bottom: 0 }}
+                    >
+                      <CartesianGrid
+                        stroke="#e5e5e5"
+                        vertical={false}
+                        strokeDasharray="0"
+                      />
+                      <XAxis
+                        dataKey="mes"
+                        tick={{ fill: "#999", fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickMargin={12}
+                      />
+                      <YAxis
+                        domain={[0, 100]}
+                        ticks={[0, 25, 50, 75, 100]}
+                        tick={{ fill: "#999", fontSize: 10 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        formatter={(value) => [`${value}/100`, "Score"]}
+                        contentStyle={{
+                          borderRadius: 12,
+                          border: "1px solid #e5e5e5",
+                          fontSize: 12,
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="score"
+                        stroke="#193f59"
+                        strokeWidth={2.5}
+                        dot={{
+                          r: 3.5,
+                          fill: "#fff",
+                          stroke: "#193f59",
+                          strokeWidth: 2,
+                        }}
+                        activeDot={{ r: 5 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </article>
 
             {/* Recomendações */}
@@ -403,6 +452,12 @@ export default function FinancialHealth() {
                   );
                 })}
               </div>
+
+              {recQ.data?.insight && (
+                <p className="mt-4 text-xs leading-5 text-[#666]">
+                  {recQ.data.insight}
+                </p>
+              )}
 
               <div className="mt-5 rounded-xl bg-[#f5f8f6] p-3">
                 <div className="flex items-start gap-2">

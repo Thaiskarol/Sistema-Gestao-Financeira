@@ -1,4 +1,6 @@
-import { useState, type ReactNode } from "react";
+
+import { useMemo, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
   Bell,
@@ -14,6 +16,9 @@ import {
 } from "lucide-react";
 
 import { AppLayout } from "../layouts/AppLayout";
+import { getInsights } from "@/services/insights";
+import { getScore } from "@/services/saude";
+import { getResumo } from "@/services/financeiro";
 
 type Insight = {
   id: number;
@@ -25,41 +30,30 @@ type Insight = {
   details: string;
 };
 
-const insights: Insight[] = [
-  {
-    id: 1,
-    title: "Alimentação acima da média",
-    description:
-      "Seus gastos com delivery cresceram 28% nesta semana.",
-    category: "Atenção",
-    date: "Hoje · Atualizado automaticamente",
-    type: "attention",
-    details:
-      "Compare seus gastos com alimentação nas últimas semanas e confira se o aumento veio de delivery, restaurantes ou supermercado. Definir um limite para essa categoria pode ajudar no controle.",
-  },
-  {
-    id: 2,
-    title: "Meta de reserva no caminho certo",
-    description:
-      "Mantendo o ritmo, você poderá alcançar sua reserva antes do prazo estimado.",
-    category: "Boa notícia",
-    date: "Hoje · Com base no seu histórico",
-    type: "success",
-    details:
-      "Seus aportes recentes estão contribuindo para o progresso da meta. Continue acompanhando os depósitos e revise o valor planejado quando sua renda ou suas despesas mudarem.",
-  },
-  {
-    id: 3,
-    title: "Orçamento de transporte sob controle",
-    description:
-      "Seus gastos estão dentro do limite definido para o mês.",
-    category: "Informação",
-    date: "Atualizado este mês",
-    type: "info",
-    details:
-      "O acompanhamento periódico ajuda a perceber mudanças antes que o limite seja ultrapassado. Continue registrando os gastos dessa categoria.",
-  },
-];
+function tipoVisual(tipo: string): Insight["type"] {
+  const t = (tipo ?? "").toUpperCase();
+
+  if (
+    t.includes("ALERTA") ||
+    t.includes("AUMENTO") ||
+    t.includes("EXCED") ||
+    t.includes("ATENC")
+  ) {
+    return "attention";
+  }
+
+  if (t.includes("ECONOMIA") || t.includes("POSITIV")) {
+    return "success";
+  }
+
+  return "info";
+}
+
+const rotuloTipo = {
+  attention: "Atenção",
+  success: "Boa notícia",
+  info: "Informação",
+};
 
 const typeStyles = {
   attention: {
@@ -77,8 +71,58 @@ const typeStyles = {
 };
 
 export default function Insights() {
-  const [period, setPeriod] = useState("Este mês");
   const [expandedInsight, setExpandedInsight] = useState<number | null>(null);
+
+  const insightsQ = useQuery({
+    queryKey: ["insights"],
+    queryFn: getInsights,
+  });
+
+  const scoreQ = useQuery({
+    queryKey: ["score"],
+    queryFn: getScore,
+  });
+
+  const resumoQ = useQuery({
+    queryKey: ["resumo"],
+    queryFn: getResumo,
+  });
+
+  const insights: Insight[] = useMemo(
+    () =>
+      (insightsQ.data ?? []).map((i, idx) => {
+        const type = tipoVisual(i.tipo);
+
+        return {
+          id: idx + 1,
+          title: i.categoria ?? "Análise financeira",
+          description: i.mensagem,
+          category: rotuloTipo[type],
+          date: "Atualizado agora",
+          type,
+          details:
+            i.percentual != null
+              ? `Variação identificada: ${i.percentual}%.`
+              : i.mensagem,
+        };
+      }),
+    [insightsQ.data],
+  );
+
+  const atencao = insights.filter(
+    (i) => i.type === "attention",
+  ).length;
+
+  const receitas = resumoQ.data?.totalReceitas ?? 0;
+
+  const taxaEconomia =
+    receitas > 0
+      ? Math.round(
+          ((resumoQ.data?.saldo ?? 0) / receitas) * 100,
+        )
+      : 0;
+
+  const score = scoreQ.data?.score ?? 0;
 
   return (
     <AppLayout>
@@ -96,21 +140,6 @@ export default function Insights() {
               Análises inteligentes para apoiar suas próximas decisões.
             </p>
           </div>
-
-          <label className="flex items-center gap-2 self-start sm:self-auto">
-            <span className="text-xs text-[#777] sm:hidden">Período:</span>
-            <select
-              value={period}
-              onChange={(event) => setPeriod(event.target.value)}
-              className="min-h-10 rounded-xl border border-[#dedede] bg-white px-3 text-sm text-[#555] outline-none transition focus:border-[#bd0c36] focus:ring-2 focus:ring-[#bd0c36]/10"
-              aria-label="Selecionar período dos insights"
-            >
-              <option>Esta semana</option>
-              <option>Este mês</option>
-              <option>Últimos 3 meses</option>
-              <option>Últimos 6 meses</option>
-            </select>
-          </label>
         </section>
 
         {/* Indicadores resumidos */}
@@ -118,28 +147,31 @@ export default function Insights() {
           <SummaryCard
             icon={<Sparkles size={19} />}
             label="Insights disponíveis"
-            value="08"
+            value={String(insights.length)}
             description="Análises para consultar"
             iconClass="bg-[#fbedf0] text-[#bd0c36]"
           />
+
           <SummaryCard
             icon={<CircleAlert size={19} />}
             label="Precisam de atenção"
-            value="02"
+            value={String(atencao)}
             description="Revise seus gastos"
             iconClass="bg-[#fff4df] text-[#c58a08]"
           />
+
           <SummaryCard
             icon={<TrendingUp size={19} />}
             label="Taxa de economia"
-            value="41%"
-            description="No período selecionado"
+            value={`${taxaEconomia}%`}
+            description="Total do histórico"
             iconClass="bg-[#eaf5ef] text-[#39845b]"
           />
+
           <SummaryCard
             icon={<ShieldCheck size={19} />}
             label="Saúde financeira"
-            value="82/100"
+            value={`${score}/100`}
             description="Pontuação"
             iconClass="bg-[#eaf0f5] text-[#244a64]"
           />
@@ -161,15 +193,17 @@ export default function Insights() {
                       Bom resultado
                     </span>
                     <span className="text-[11px] text-[#999]">
-                      {period}
+                      Total do histórico
                     </span>
                   </div>
 
                   <h2 className="text-base font-semibold text-[#303030]">
-                    Sua taxa de economia está evoluindo
+                    Sua taxa de economia está em {taxaEconomia}%
                   </h2>
+
                   <p className="mt-1 text-sm leading-6 text-[#777]">
-                    Sua taxa de economia chegou a 41%, segundo os dados deste painel.
+                    Sua taxa de economia é calculada com base no saldo e
+                    nas receitas registradas.
                   </p>
 
                   <button
@@ -189,17 +223,15 @@ export default function Insights() {
 
                   {expandedInsight === 0 && (
                     <p className="mt-3 rounded-lg bg-[#faf6f7] p-3 text-sm leading-6 text-[#666]">
-                      A taxa de economia é calculada comparando o valor
-                      economizado com a renda do mesmo período. Para uma
-                      análise real, o sistema precisará dos registros de
-                      renda e despesas.
+                      A taxa de economia representa a proporção do saldo
+                      em relação às receitas registradas no histórico.
                     </p>
                   )}
                 </div>
 
                 <div className="shrink-0 sm:text-right">
                   <p className="text-3xl font-bold tracking-tight text-[#bd0c36]">
-                    41%
+                    {taxaEconomia}%
                   </p>
                   <p className="text-[11px] text-[#888]">
                     Taxa de economia
@@ -219,10 +251,32 @@ export default function Insights() {
                     Acompanhe os pontos importantes das suas finanças.
                   </p>
                 </div>
+
                 <span className="rounded-full bg-white px-3 py-1 text-xs text-[#777] ring-1 ring-[#e5e5e5]">
                   {insights.length} análises
                 </span>
               </div>
+
+              {insightsQ.isLoading && (
+                <p className="rounded-2xl border border-[#dedede] bg-white p-5 text-sm text-[#777]">
+                  Carregando insights...
+                </p>
+              )}
+
+              {insightsQ.isError && (
+                <p className="rounded-2xl border border-[#dedede] bg-white p-5 text-sm text-[#bd0c36]">
+                  Não foi possível carregar os insights. Tente novamente.
+                </p>
+              )}
+
+              {!insightsQ.isLoading &&
+                !insightsQ.isError &&
+                insights.length === 0 && (
+                  <p className="rounded-2xl border border-[#dedede] bg-white p-5 text-sm leading-6 text-[#777]">
+                    Ainda não há insights. Cadastre transações de pelo
+                    menos dois meses.
+                  </p>
+                )}
 
               {insights.map((insight) => {
                 const isExpanded = expandedInsight === insight.id;
@@ -256,9 +310,11 @@ export default function Insights() {
                         <h3 className="mt-2 text-sm font-semibold text-[#303030] sm:text-[15px]">
                           {insight.title}
                         </h3>
+
                         <p className="mt-1 text-sm leading-6 text-[#777]">
                           {insight.description}
                         </p>
+
                         <p className="mt-2 text-[10px] text-[#999]">
                           {insight.date}
                         </p>
@@ -316,6 +372,7 @@ export default function Insights() {
                   Saúde financeira
                 </h2>
               </div>
+
               <p className="mt-1 text-xs leading-5 text-[#888]">
                 Resumo dos seus indicadores financeiros.
               </p>
@@ -323,35 +380,35 @@ export default function Insights() {
               <div className="mt-5 flex items-center gap-4 rounded-xl bg-[#fbedf0] p-4">
                 <div className="flex size-[62px] shrink-0 items-center justify-center rounded-full border-4 border-[#e8c1cb] bg-white">
                   <span className="text-xl font-bold text-[#970b2e]">
-                    82
+                    {score}
                   </span>
                 </div>
+
                 <div>
                   <p className="text-sm font-bold text-[#303030]">
-                    Muito bem!
+                    {score >= 70 ? "Muito bem!" : "Continue melhorando!"}
                   </p>
                   <p className="mt-1 text-xs leading-5 text-[#777]">
-                    Sua pontuação está boa, continue assim!
+                    Acompanhe seus critérios para melhorar sua pontuação.
                   </p>
                 </div>
               </div>
 
               <div className="mt-4 divide-y divide-[#eeeeee]">
-                <MetricRow
-                  label="Controle de gastos"
-                  value="Excelente"
-                  tone="green"
-                />
-                <MetricRow
-                  label="Consistência"
-                  value="Boa"
-                  tone="green"
-                />
-                <MetricRow
-                  label="Diversificação"
-                  value="Pode melhorar"
-                  tone="yellow"
-                />
+                {(scoreQ.data?.criterios ?? [])
+                  .slice(0, 3)
+                  .map((c) => (
+                    <MetricRow
+                      key={c.nome}
+                      label={c.nome}
+                      value={
+                        c.pontos >= 12
+                          ? "Bom"
+                          : "Pode melhorar"
+                      }
+                      tone={c.pontos >= 12 ? "green" : "yellow"}
+                    />
+                  ))}
               </div>
 
               <a
@@ -368,13 +425,16 @@ export default function Insights() {
               <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-[#f5f5f5] text-[#777]">
                 <ChartNoAxesColumn size={23} />
               </div>
+
               <h2 className="mt-4 text-sm font-semibold text-[#303030]">
                 Amplie suas análises
               </h2>
+
               <p className="mx-auto mt-2 max-w-xs text-xs leading-5 text-[#888]">
                 Quanto mais completos forem seus registros de renda e
                 despesas, mais úteis poderão ser os insights.
               </p>
+
               <a
                 href="/transacoes"
                 className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#bd0c36] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#970b2e]"
@@ -390,14 +450,17 @@ export default function Insights() {
                 <div className="flex size-9 items-center justify-center rounded-lg bg-[#fff4df] text-[#bd8a13]">
                   <Bell size={18} />
                 </div>
+
                 <h2 className="text-sm font-semibold text-[#303030]">
                   Dica financeira
                 </h2>
               </div>
+
               <p className="mt-3 text-sm leading-6 text-[#777]">
                 Revise seus gastos por categoria regularmente e compare o
                 resultado com os limites que você definiu no orçamento.
               </p>
+
               <a
                 href="/orcamento"
                 className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#970b2e] hover:text-[#bd0c36]"
@@ -406,10 +469,6 @@ export default function Insights() {
                 <ArrowRight size={14} />
               </a>
             </section>
-
-            <div className="flex items-start gap-2 px-1 text-[11px] leading-5 text-[#999]">
-              
-            </div>
           </aside>
         </div>
       </div>
@@ -442,9 +501,11 @@ function SummaryCard({
           {icon}
         </div>
       </div>
+
       <p className="mt-3 text-2xl font-bold tracking-tight text-[#292929]">
         {value}
       </p>
+
       <p className="mt-1 text-xs text-[#888]">{description}</p>
     </article>
   );

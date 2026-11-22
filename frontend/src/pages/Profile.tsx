@@ -12,6 +12,17 @@ import {
   Moon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { logout, saveUsuario } from "@/lib/session";
+import {
+  getPerfil,
+  atualizarPerfil,
+  alterarSenha,
+} from "@/services/usuario";
 import { AppLayout } from "../layouts/AppLayout";
 
 type Section = "perfil" | "preferencias" | "notificacoes" | "seguranca";
@@ -27,8 +38,8 @@ const inputClass =
   "mt-2 min-h-11 w-full min-w-0 rounded-xl border border-[#d8d8d8] bg-white px-3.5 py-3 text-sm text-[#333] outline-none transition placeholder:text-[#999] focus:border-[#bd0c36] focus:ring-2 focus:ring-rose-100";
 
 const initialProfile = {
-  name: "Ana Martins",
-  email: "ana.martins@email.com",
+  name: "",
+  email: "",
   phone: "",
   birthDate: "",
 };
@@ -101,18 +112,34 @@ function Toggle({
 
 export default function Profile() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [section, setSection] = useState<Section>("perfil");
-  const [profile, setProfile] = useState(initialProfile);
   const [savedMessage, setSavedMessage] = useState("");
+
+  const perfilQ = useQuery({
+    queryKey: ["perfil"],
+    queryFn: getPerfil,
+  });
+
+  const [edicao, setEdicao] = useState<typeof initialProfile | null>(null);
+
+  const profile = edicao ?? (perfilQ.data
+    ? {
+        name: perfilQ.data.nome,
+        email: perfilQ.data.email,
+        phone: perfilQ.data.telefone ?? "",
+        birthDate: perfilQ.data.dataNascimento,
+      }
+    : initialProfile);
 
   const [preferences, setPreferences] = useState({
     currency: "BRL",
     monthStart: "1",
     compactMode: true,
     theme: (localStorage.getItem("financialTheme") === "dark"
-    ? "dark"
-    : "light") as "light" | "dark",
+      ? "dark"
+      : "light") as "light" | "dark",
   });
 
   const [notifications, setNotifications] = useState({
@@ -155,29 +182,51 @@ export default function Profile() {
     },
   ]);
 
+  const salvarPerfil = useMutation({
+    mutationFn: atualizarPerfil,
+    onSuccess: (p) => {
+      saveUsuario({ id: p.id, nome: p.nome, email: p.email });
+      setEdicao(null);
+      queryClient.invalidateQueries({ queryKey: ["perfil"] });
+      setSavedMessage("Perfil atualizado com sucesso.");
+    },
+    onError: (e) => setSavedMessage((e as Error).message),
+  });
+
+  const trocarSenha = useMutation({
+    mutationFn: (v: { atual: string; nova: string }) =>
+      alterarSenha(v.atual, v.nova),
+    onSuccess: () => {
+      setSecurityModal(null);
+      setPassword({ current: "", newPassword: "", confirm: "" });
+      setSavedMessage("Senha alterada com sucesso.");
+    },
+    onError: (e) => setSavedMessage((e as Error).message),
+  });
+
   function updateProfile(
     field: keyof typeof initialProfile,
     value: string,
   ) {
-    setProfile((current) => ({ ...current, [field]: value }));
+    setEdicao({ ...profile, [field]: value });
     setSavedMessage("");
   }
 
   function updateTheme(theme: "light" | "dark") {
-  setPreferences((current) => ({
-    ...current,
-    theme,
-  }));
+    setPreferences((current) => ({
+      ...current,
+      theme,
+    }));
 
-  localStorage.setItem("financialTheme", theme);
+    localStorage.setItem("financialTheme", theme);
 
-  document.documentElement.classList.toggle(
-    "dark",
-    theme === "dark",
-  );
+    document.documentElement.classList.toggle(
+      "dark",
+      theme === "dark",
+    );
 
-  setSavedMessage("");
-}
+    setSavedMessage("");
+  }
 
   function updateTwoFactor(checked: boolean) {
     setSecurity((current) => ({
@@ -213,8 +262,17 @@ export default function Profile() {
   function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (section === "perfil") {
+      salvarPerfil.mutate({
+        nome: profile.name.trim(),
+        email: profile.email.trim(),
+        telefone: profile.phone.trim() || null,
+        dataNascimento: profile.birthDate,
+      });
+      return;
+    }
+
     try {
-      localStorage.setItem("financialProfile", JSON.stringify(profile));
       localStorage.setItem(
         "financialPreferences",
         JSON.stringify(preferences),
@@ -223,8 +281,11 @@ export default function Profile() {
         "financialNotifications",
         JSON.stringify(notifications),
       );
-      localStorage.setItem("financialSecurity", JSON.stringify(security));
-      setSavedMessage("Alterações salvas neste navegador.");
+      localStorage.setItem(
+        "financialSecurity",
+        JSON.stringify(security),
+      );
+      setSavedMessage("Preferências salvas neste navegador.");
     } catch {
       setSavedMessage("Não foi possível salvar as alterações.");
     }
@@ -237,9 +298,28 @@ export default function Profile() {
           <>
             <h2 className="text-base font-semibold text-[#333]">Meu perfil</h2>
 
+            {perfilQ.isLoading && (
+              <p className="mt-4 text-sm text-[#888]">
+                Carregando dados do perfil...
+              </p>
+            )}
+
+            {perfilQ.isError && (
+              <p role="alert" className="mt-4 text-sm text-red-600">
+                Não foi possível carregar os dados do perfil:{" "}
+                {(perfilQ.error as Error).message}
+              </p>
+            )}
+
             <div className="mt-5 flex flex-wrap items-center gap-4 border-b border-[#dedede] pb-6">
               <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-[#fbedf0] text-xl font-bold text-[#8c092e]">
-                AM
+                {profile.name
+                  .split(" ")
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .map((p) => p[0])
+                  .join("")
+                  .toUpperCase() || "?"}
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-[#333]">
@@ -360,45 +440,45 @@ export default function Profile() {
               </div>
 
               <div className="flex flex-col gap-3 border-t border-[#dedede] py-4 sm:flex-row sm:items-center sm:justify-between">
-  <div className="min-w-0">
-    <p className="text-sm font-semibold text-[#333]">
-      Aparência do sistema
-    </p>
-    <p className="mt-1 text-xs text-[#888]">
-      Escolha entre o modo claro e o modo escuro
-    </p>
-  </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[#333]">
+                    Aparência do sistema
+                  </p>
+                  <p className="mt-1 text-xs text-[#888]">
+                    Escolha entre o modo claro e o modo escuro
+                  </p>
+                </div>
 
-  <div className="flex w-full gap-2 sm:w-auto sm:shrink-0">
-    <button
-      type="button"
-      onClick={() => updateTheme("light")}
-      aria-pressed={preferences.theme === "light"}
-      className={`flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition sm:flex-none ${
-        preferences.theme === "light"
-          ? "border-[#bd0c36] bg-[#fbedf0] text-[#bd0c36]"
-          : "border-[#d8d8d8] bg-white text-[#555] hover:bg-slate-50"
-      }`}
-    >
-      <Sun size={17} />
-      Claro
-    </button>
+                <div className="flex w-full gap-2 sm:w-auto sm:shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => updateTheme("light")}
+                    aria-pressed={preferences.theme === "light"}
+                    className={`flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition sm:flex-none ${
+                      preferences.theme === "light"
+                        ? "border-[#bd0c36] bg-[#fbedf0] text-[#bd0c36]"
+                        : "border-[#d8d8d8] bg-white text-[#555] hover:bg-slate-50"
+                    }`}
+                  >
+                    <Sun size={17} />
+                    Claro
+                  </button>
 
-    <button
-      type="button"
-      onClick={() => updateTheme("dark")}
-      aria-pressed={preferences.theme === "dark"}
-      className={`flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition sm:flex-none ${
-        preferences.theme === "dark"
-          ? "border-[#bd0c36] bg-[#fbedf0] text-[#bd0c36]"
-          : "border-[#d8d8d8] bg-white text-[#555] hover:bg-slate-50"
-      }`}
-    >
-      <Moon size={17} />
-      Escuro
-    </button>
-  </div>
-</div>
+                  <button
+                    type="button"
+                    onClick={() => updateTheme("dark")}
+                    aria-pressed={preferences.theme === "dark"}
+                    className={`flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition sm:flex-none ${
+                      preferences.theme === "dark"
+                        ? "border-[#bd0c36] bg-[#fbedf0] text-[#bd0c36]"
+                        : "border-[#d8d8d8] bg-white text-[#555] hover:bg-slate-50"
+                    }`}
+                  >
+                    <Moon size={17} />
+                    Escuro
+                  </button>
+                </div>
+              </div>
 
               <div className="flex items-center justify-between gap-4 border-t border-[#dedede] py-4">
                 <div className="min-w-0">
@@ -507,7 +587,6 @@ export default function Profile() {
             </h2>
 
             <div className="mt-4 border-t border-[#dedede]">
-              {/* Senha */}
               <div className="flex flex-col gap-3 border-b border-[#dedede] py-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-[#333]">
@@ -534,14 +613,13 @@ export default function Profile() {
                 </button>
               </div>
 
-              {/* Autenticação em duas etapas */}
               <div className="flex items-center justify-between gap-4 border-b border-[#dedede] py-5">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-[#333]">
                     Autenticação em duas etapas
                   </p>
                   <p className="mt-1 text-xs text-[#888]">
-                    Adicione uma camada extra de proteção
+                    Adicione uma camada extra de proteção (demonstração)
                   </p>
                 </div>
 
@@ -567,14 +645,13 @@ export default function Profile() {
                 </button>
               </div>
 
-              {/* Dispositivos conectados */}
               <div className="flex flex-col gap-3 border-b border-[#dedede] py-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-[#333]">
                     Dispositivos conectados
                   </p>
                   <p className="mt-1 text-xs text-[#888]">
-                    {devices.length} dispositivos com sessão ativa
+                    {devices.length} dispositivos com sessão ativa (demonstração)
                   </p>
                 </div>
 
@@ -588,7 +665,6 @@ export default function Profile() {
               </div>
             </div>
 
-            {/* Encerrar sessões */}
             <div className="mt-6 flex flex-col gap-4 rounded-xl border border-[#f2d4dc] bg-[#fff5f7] p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-[#8c092e]">
@@ -608,7 +684,6 @@ export default function Profile() {
               </button>
             </div>
 
-            {/* Modal de alteração de senha */}
             {securityModal === "password" && (
               <div
                 className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-4"
@@ -654,6 +729,7 @@ export default function Profile() {
                       <input
                         required
                         minLength={8}
+                        maxLength={72}
                         type="password"
                         autoComplete="new-password"
                         value={password.newPassword}
@@ -672,6 +748,7 @@ export default function Profile() {
                       <input
                         required
                         minLength={8}
+                        maxLength={72}
                         type="password"
                         autoComplete="new-password"
                         value={password.confirm}
@@ -696,6 +773,7 @@ export default function Profile() {
 
                       <button
                         type="button"
+                        disabled={trocarSenha.isPending}
                         onClick={() => {
                           if (
                             !password.current ||
@@ -708,9 +786,12 @@ export default function Profile() {
                             return;
                           }
 
-                          if (password.newPassword.length < 8) {
+                          if (
+                            password.newPassword.length < 8 ||
+                            password.newPassword.length > 72
+                          ) {
                             setSavedMessage(
-                              "A nova senha deve ter pelo menos 8 caracteres.",
+                              "A nova senha deve ter entre 8 e 72 caracteres.",
                             );
                             return;
                           }
@@ -724,19 +805,14 @@ export default function Profile() {
                             return;
                           }
 
-                          setSecurityModal(null);
-                          setPassword({
-                            current: "",
-                            newPassword: "",
-                            confirm: "",
+                          trocarSenha.mutate({
+                            atual: password.current,
+                            nova: password.newPassword,
                           });
-                          setSavedMessage(
-                            "Formulário validado. A alteração real da senha depende do serviço de autenticação.",
-                          );
                         }}
-                        className="min-h-10 rounded-lg bg-[#bd0c36] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a20b2e]"
+                        className="min-h-10 rounded-lg bg-[#bd0c36] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a20b2e] disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        Continuar
+                        {trocarSenha.isPending ? "Alterando..." : "Continuar"}
                       </button>
                     </div>
                   </div>
@@ -744,7 +820,6 @@ export default function Profile() {
               </div>
             )}
 
-            {/* Modal de dispositivos */}
             {securityModal === "devices" && (
               <div
                 className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-4"
@@ -827,7 +902,7 @@ export default function Profile() {
   }
 
   return (
-    <AppLayout >
+    <AppLayout>
       <div className="w-full min-w-0 space-y-5 pb-8">
         <header>
           <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#8c092e]">
@@ -877,7 +952,11 @@ export default function Profile() {
 
               <button
                 type="button"
-                onClick={() => navigate("/")}
+                onClick={() => {
+                  logout();
+                  queryClient.clear();
+                  navigate("/", { replace: true });
+                }}
                 className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-[#8c092e] hover:bg-[#fbedf0]"
               >
                 <LogOut size={15} />
@@ -900,10 +979,14 @@ export default function Profile() {
               <div className="mt-5 flex flex-col-reverse justify-end gap-3 border-t border-[#dedede] pt-4 sm:flex-row">
                 <button
                   type="submit"
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#bd0c36] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#a20b2e]"
+                  disabled={
+                    section === "perfil" &&
+                    (salvarPerfil.isPending || perfilQ.isLoading)
+                  }
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#bd0c36] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#a20b2e] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Check size={17} />
-                  Salvar alterações
+                  {salvarPerfil.isPending ? "Salvando..." : "Salvar alterações"}
                 </button>
               </div>
             </section>

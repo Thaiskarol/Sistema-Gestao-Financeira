@@ -1,17 +1,27 @@
+
 import { useState, type FormEvent } from "react";
 import { ArrowLeft, Mail, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
+import { apiPost } from "@/lib/api";
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
+  const [enviando, setEnviando] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    setMessage(
-      "Solicitação validada! O envio do e-mail de recuperação será habilitado quando conectarmos o backend.",
-    );
+    setEnviando(true);
+    try {
+      await apiPost("/auth/esqueci-senha", { email: email.trim() });
+      setMessage(
+        "Se o e-mail estiver cadastrado, você receberá um link para redefinir a senha. O link vale por 30 minutos.",
+      );
+    } catch (e) {
+      setMessage((e as Error).message);
+    } finally {
+      setEnviando(false);
+    }
   }
 
   return (
@@ -165,13 +175,14 @@ function ForgotPassword() {
 
             <button
               type="submit"
+              disabled={enviando}
               className="flex h-11 w-full items-center justify-center rounded-xl bg-[#C81035] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#AD0D2D] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C81035] active:scale-[0.99]"
             >
-              Recuperar senha
+              {enviando ? "Enviando..." : "Recuperar senha"}
             </button>
           </form>
 
-          {/* Mensagem enquanto o backend não está conectado */}
+          {/* Mensagem de retorno */}
           {message && (
             <p
               role="status"
