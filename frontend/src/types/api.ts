@@ -4,6 +4,7 @@ export type TipoTransacao = "RECEITA" | "DESPESA";
 export type Categoria = {
   id: number;
   nome: string;
+  padrao: boolean;
 };
 
 export type Transacao = {

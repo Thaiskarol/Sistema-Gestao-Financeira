@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
   Tag,
@@ -11,24 +12,22 @@ import {
   Save,
 } from "lucide-react";
 import { AppLayout } from "../layouts/AppLayout";
+import { mesAtual } from "@/lib/format";
+import { getCategorias } from "@/services/transacoes";
+import {
+  getOrcamentos,
+  criarOrcamento,
+  atualizarOrcamento,
+  excluirOrcamento,
+} from "@/services/orcamentos";
 
 type Budget = {
   id: number;
+  categoriaId: number;
   category: string;
   limit: number;
   spent: number;
 };
-
-const initialBudgets: Budget[] = [
-  { id: 1, category: "Moradia", limit: 2200, spent: 1820 },
-  { id: 2, category: "Alimentação", limit: 1500, spent: 1210.4 },
-  { id: 3, category: "Transporte", limit: 1000, spent: 780.25 },
-  { id: 4, category: "Lazer", limit: 600, spent: 570 },
-  { id: 5, category: "Saúde", limit: 500, spent: 340 },
-  { id: 6, category: "Compras", limit: 700, spent: 410 },
-  { id: 7, category: "Assinaturas", limit: 250, spent: 186.9 },
-  { id: 8, category: "Educação", limit: 500, spent: 290 },
-];
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", {
@@ -67,22 +66,68 @@ function getStatus(spent: number, limit: number) {
 }
 
 export default function Budgets() {
-  const [budgets, setBudgets] = useState<Budget[]>(initialBudgets);
-  const [month, setMonth] = useState("2025-06");
+  const [month, setMonth] = useState(mesAtual());
+  const [categoriaId, setCategoriaId] = useState("");
+  const queryClient = useQueryClient();
+
+  const orcamentosQ = useQuery({
+    queryKey: ["orcamentos", month],
+    queryFn: () => getOrcamentos(month),
+  });
+
+  const categoriasQ = useQuery({
+    queryKey: ["categorias"],
+    queryFn: getCategorias,
+  });
+
+  const budgets: Budget[] = useMemo(
+    () =>
+      (orcamentosQ.data ?? []).map((o) => ({
+        id: o.id,
+        categoriaId: o.categoriaId,
+        category: o.categoriaNome,
+        limit: Number(o.limite),
+        spent: Number(o.valorConsumido),
+      })),
+    [orcamentosQ.data],
+  );
+
+  const salvar = useMutation({
+    mutationFn: (v: {
+      id: number | null;
+      categoriaId: number;
+      limite: number;
+    }) =>
+      v.id === null
+        ? criarOrcamento(v.categoriaId, v.limite)
+        : atualizarOrcamento(v.id, v.limite),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
+      setModalOpen(false);
+    },
+    onError: (e) => setError((e as Error).message),
+  });
+
+  const excluir = useMutation({
+    mutationFn: excluirOrcamento,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["orcamentos"] }),
+    onError: (e) => window.alert((e as Error).message),
+  });
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [category, setCategory] = useState("");
   const [limit, setLimit] = useState("");
   const [error, setError] = useState("");
 
   const totalLimit = useMemo(
     () => budgets.reduce((total, budget) => total + budget.limit, 0),
-    [budgets]
+    [budgets],
   );
 
   const totalSpent = useMemo(
     () => budgets.reduce((total, budget) => total + budget.spent, 0),
-    [budgets]
+    [budgets],
   );
 
   const remaining = totalLimit - totalSpent;
@@ -101,7 +146,7 @@ export default function Budgets() {
 
   function openNewBudget() {
     setEditingId(null);
-    setCategory("");
+    setCategoriaId("");
     setLimit("");
     setError("");
     setModalOpen(true);
@@ -109,7 +154,7 @@ export default function Budgets() {
 
   function openEditBudget(budget: Budget) {
     setEditingId(budget.id);
-    setCategory(budget.category);
+    setCategoriaId(String(budget.categoriaId));
     setLimit(String(budget.limit));
     setError("");
     setModalOpen(true);
@@ -118,10 +163,10 @@ export default function Budgets() {
   function saveBudget(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const cleanCategory = category.trim();
     const numericLimit = Number(limit.replace(",", "."));
+    const idCategoria = Number(categoriaId);
 
-    if (!cleanCategory) {
+    if (!idCategoria) {
       setError("Informe a categoria.");
       return;
     }
@@ -132,9 +177,7 @@ export default function Budgets() {
     }
 
     const duplicate = budgets.some(
-      (budget) =>
-        budget.category.toLowerCase() === cleanCategory.toLowerCase() &&
-        budget.id !== editingId
+      (b) => b.categoriaId === idCategoria && b.id !== editingId,
     );
 
     if (duplicate) {
@@ -142,41 +185,23 @@ export default function Budgets() {
       return;
     }
 
-    if (editingId !== null) {
-      setBudgets((current) =>
-        current.map((budget) =>
-          budget.id === editingId
-            ? { ...budget, category: cleanCategory, limit: numericLimit }
-            : budget
-        )
-      );
-    } else {
-      setBudgets((current) => [
-        ...current,
-        {
-          id: Date.now(),
-          category: cleanCategory,
-          limit: numericLimit,
-          spent: 0,
-        },
-      ]);
-    }
-
-    setModalOpen(false);
+    salvar.mutate({
+      id: editingId,
+      categoriaId: idCategoria,
+      limite: numericLimit,
+    });
   }
 
   function deleteBudget(budget: Budget) {
     if (
       !window.confirm(
-        `Deseja excluir o orçamento de "${budget.category}"?`
+        `Deseja excluir o orçamento de "${budget.category}"?`,
       )
     ) {
       return;
     }
 
-    setBudgets((current) =>
-      current.filter((item) => item.id !== budget.id)
-    );
+    excluir.mutate(budget.id);
   }
 
   return (
@@ -273,6 +298,15 @@ export default function Budgets() {
 
         {/* Orçamento por categoria */}
         <section className="overflow-hidden rounded-2xl border border-[#dedede] bg-white">
+          {orcamentosQ.error && (
+            <p
+              role="alert"
+              className="rounded-lg bg-rose-50 p-3 text-sm text-[#a30f35]"
+            >
+              {(orcamentosQ.error as Error).message}
+            </p>
+          )}
+
           <div className="flex flex-col justify-between gap-3 p-4 sm:flex-row sm:items-center sm:px-5 sm:py-5">
             <div>
               <h2 className="text-base font-semibold text-[#333]">
@@ -307,16 +341,13 @@ export default function Budgets() {
                 {budgets.map((budget) => {
                   const percentage = getPercentage(
                     budget.spent,
-                    budget.limit
+                    budget.limit,
                   );
                   const status = getStatus(budget.spent, budget.limit);
                   const categoryRemaining = budget.limit - budget.spent;
 
                   return (
-                    <article
-                      key={budget.id}
-                      className="py-4"
-                    >
+                    <article key={budget.id} className="py-4">
                       {/* Desktop */}
                       <div className="hidden grid-cols-[minmax(120px,1fr)_minmax(190px,1.1fr)_minmax(130px,1.2fr)_88px] items-center gap-4 lg:grid">
                         <div className="flex min-w-0 items-center gap-2.5">
@@ -542,19 +573,24 @@ export default function Budgets() {
                 >
                   Categoria
                 </label>
-                <input
+                <select
                   id="budget-category"
-                  autoFocus
                   required
-                  maxLength={50}
-                  value={category}
-                  onChange={(event) => {
-                    setCategory(event.target.value);
+                  disabled={editingId !== null}
+                  value={categoriaId}
+                  onChange={(e) => {
+                    setCategoriaId(e.target.value);
                     setError("");
                   }}
-                  placeholder="Ex.: Alimentação"
-                  className="w-full rounded-xl border border-[#dedede] px-3 py-3 text-sm outline-none focus:border-[#bd0c36]"
-                />
+                  className="w-full rounded-xl border border-[#dedede] bg-white px-3 py-3 text-sm outline-none focus:border-[#bd0c36]"
+                >
+                  <option value="">Selecione</option>
+                  {(categoriasQ.data ?? []).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nome}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

@@ -1,5 +1,4 @@
-
-import { apiGet, apiPost } from "@/lib/api";
+import { apiDelete, apiGet, apiPost } from "@/lib/api";
 import { getUsuarioId } from "@/lib/session";
 import type { Meta } from "@/types/api";
 
@@ -18,3 +17,5 @@ export const criarMeta = (dados: {
     ...dados,
     usuarioId: getUsuarioId(),
   });
+export const excluirMeta = (id: number) =>
+  apiDelete(`/metas/${id}`, { usuarioId: getUsuarioId() });
